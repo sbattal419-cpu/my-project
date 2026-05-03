@@ -19,8 +19,12 @@ export async function uploadAvatar(file: File, userId: string): Promise<string> 
   return data.publicUrl
 }
 
-export async function signUp(email: string, password: string) {
-  const { data, error } = await supabase.auth.signUp({ email, password })
+export async function signUp(email: string, password: string, fullName?: string) {
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: { data: { full_name: fullName ?? '' } },
+  })
   if (error) throw error
   return data
 }
@@ -39,6 +43,16 @@ export async function signOut() {
 export async function getUser() {
   const { data: { user } } = await supabase.auth.getUser()
   return user
+}
+
+export async function updateProfile(fullName: string) {
+  const { error } = await supabase.auth.updateUser({ data: { full_name: fullName } })
+  if (error) throw error
+}
+
+export async function updatePassword(newPassword: string) {
+  const { error } = await supabase.auth.updateUser({ password: newPassword })
+  if (error) throw error
 }
 
 export async function resetPassword(email: string) {

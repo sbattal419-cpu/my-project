@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { useEffect } from 'react'
 import { AuthProvider } from './context/AuthContext'
 import { playClick, playNav, playHover } from './lib/sounds'
+import { LanguageProvider } from './context/LanguageContext'
 import HomePage from './pages/HomePage'
 import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
@@ -17,14 +18,14 @@ function SoundLayer() {
   useEffect(() => {
     const onClick = (e: MouseEvent) => {
       const el = (e.target as HTMLElement).closest('a, button, [role="button"]')
-      if (!el) return
+      if (!el || el.hasAttribute('data-no-sound')) return
       const isNav = el.tagName === 'A' && (el as HTMLAnchorElement).href && !(el as HTMLAnchorElement).href.includes('#')
       isNav ? playNav() : playClick()
     }
     let lastHovered: Element | null = null
     const onHover = (e: MouseEvent) => {
       const el = (e.target as HTMLElement).closest('a, button, [role="button"]')
-      if (!el || el === lastHovered) return
+      if (!el || el === lastHovered || el.hasAttribute('data-no-sound')) return
       lastHovered = el
       playHover()
     }
@@ -48,6 +49,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <SoundLayer />
+      <LanguageProvider>
       <AuthProvider>
         <Routes>
           <Route path="/" element={<HomePage />} />
@@ -62,6 +64,7 @@ export default function App() {
           <Route path="/accessibility" element={<AccessibilityPage />} />
         </Routes>
       </AuthProvider>
+      </LanguageProvider>
     </BrowserRouter>
   )
 }

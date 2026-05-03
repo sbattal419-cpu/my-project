@@ -2,15 +2,13 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabase'
+import { updateRightStatus, createNotification } from '../lib/supabase-ipr'
 
-interface Stats {
-  rights: number
-  users: number
-  files: number
-}
+interface Stats { rights: number; users: number; files: number }
 
 interface RightRow {
   id: number
+  auth_user_id: string | null
   title: string
   holder_name: string
   ip_type: number
@@ -18,6 +16,8 @@ interface RightRow {
   cert_id: string
   tx_hash: string
   created_at: string
+  status: string | null
+  review_note: string | null
 }
 
 interface UserRow {
@@ -32,6 +32,25 @@ const IP_LABELS = ['حق مؤلف', 'علامة تجارية', 'براءة اخ�
 const IP_COLORS = ['#2563eb', '#7c3aed', '#059669', '#d97706']
 const IP_BG    = ['#eff6ff', '#f5f3ff', '#ecfdf5', '#fffbeb']
 
+const REJECT_REASONS = [
+  'المعلومات المقدمة غير كافية',
+  'خطأ في البيانات المدخلة',
+  'الحق مسجل مسبقاً',
+  'المستندات المرفقة غير واضحة',
+  'أخرى',
+]
+
+function StatusBadge({ status }: { status: string | null }) {
+  const s = status ?? 'pending'
+  const map: Record<string, { label: string; color: string; bg: string }> = {
+    pending:  { label: 'قيد المراجعة', color: '#d97706', bg: '#fffbeb' },
+    approved: { label: 'مقبول',        color: '#059669', bg: '#ecfdf5' },
+    rejected: { label: 'مرفوض',        color: '#dc2626', bg: '#fef2f2' },
+  }
+  const { label, color, bg } = map[s] ?? map.pending
+  return <span className="ip-badge" style={{ background: bg, color, fontSize: 12 }}>{label}</span>
+}
+
 export default function AdminDashboard() {
   const { user, loading } = useAuth()
   const [isAdmin, setIsAdmin] = useState(false)
@@ -42,7 +61,13 @@ export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState<'rights' | 'users'>('rights')
   const [dataLoading, setDataLoading] = useState(true)
 
-  // فحص صلاحية الأدمن — قائمة الإيميلات المصرح لها
+  // حالة المودال
+  const [rejectModal, setRejectModal] = useState<{ row: RightRow } | null>(null)
+  const [rejectReason, setRejectReason] = useState(REJECT_REASONS[0])
+  const [rejectCustom, setRejectCustom] = useState('')
+  const [actionLoading, setActionLoading] = useState<number | null>(null)
+  const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null)
+
   const ADMIN_EMAILS = ['sbattal419@gmail.com']
 
   useEffect(() => {
@@ -52,16 +77,15 @@ export default function AdminDashboard() {
     setChecking(false)
   }, [user, loading])
 
-  // جلب البيانات
-  useEffect(() => {
-    if (!isAdmin) return
+  const loadData = () => {
     setDataLoading(true)
-
     Promise.all([
       supabase.from('Rights').select('*', { count: 'exact', head: true }),
       supabase.from('users').select('*', { count: 'exact', head: true }),
       supabase.from('Ip_files').select('*', { count: 'exact', head: true }),
-      supabase.from('Rights').select('id,title,holder_name,ip_type,wallet_address,cert_id,tx_hash,created_at').order('created_at', { ascending: false }).limit(20),
+      supabase.from('Rights')
+        .select('id,auth_user_id,title,holder_name,ip_type,wallet_address,cert_id,tx_hash,created_at,status,review_note')
+        .order('created_at', { ascending: false }).limit(50),
       supabase.from('users').select('id,full_name,email,role,created_at').order('created_at', { ascending: false }),
     ]).then(([r, u, f, rightsData, usersData]) => {
       setStats({ rights: r.count ?? 0, users: u.count ?? 0, files: f.count ?? 0 })
@@ -69,41 +93,134 @@ export default function AdminDashboard() {
       setUsers((usersData.data ?? []) as UserRow[])
       setDataLoading(false)
     })
-  }, [isAdmin])
-
-  // ─── حالات العرض ──────────────────────────────────────────────────────────────
-  if (loading || checking) {
-    return (
-      <div className="adm-center">
-        <div className="bc-spinner" />
-      </div>
-    )
   }
 
-  if (!user) {
-    return (
-      <div className="adm-center">
-        <p className="adm-denied-msg">يجب تسجيل الدخول أولاً</p>
-        <Link to="/login" className="btn-bc-primary">تسجيل الدخول</Link>
-      </div>
-    )
+  useEffect(() => { if (isAdmin) loadData() }, [isAdmin])
+
+  const showToast = (msg: string, ok: boolean) => {
+    setToast({ msg, ok })
+    setTimeout(() => setToast(null), 3500)
   }
 
-  if (!isAdmin) {
-    return (
-      <div className="adm-center">
-        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="1.5" strokeLinecap="round">
-          <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
-        </svg>
-        <p className="adm-denied-msg">ليس لديك صلاحية الوصول</p>
-        <Link to="/" className="btn-bc-ghost">العودة للرئيسية</Link>
-      </div>
-    )
+  const handleApprove = async (row: RightRow) => {
+    if (!row.auth_user_id) return
+    setActionLoading(row.id)
+    try {
+      await updateRightStatus(row.id, 'approved')
+      await createNotification({
+        authUserId: row.auth_user_id,
+        title: 'تم قبول طلبك ✅',
+        message: `تهانينا! تم قبول تسجيل حقك الفكري "${row.title}" والشهادة رقم #${row.cert_id} سارية المفعول.`,
+        type: 'success',
+      })
+      setRights(rs => rs.map(r => r.id === row.id ? { ...r, status: 'approved' } : r))
+      showToast('تم قبول الطلب وإرسال الإشعار للمستخدم', true)
+    } catch {
+      showToast('حدث خطأ أثناء القبول', false)
+    } finally {
+      setActionLoading(null)
+    }
   }
+
+  const handleRejectConfirm = async () => {
+    if (!rejectModal) return
+    const { row } = rejectModal
+    if (!row.auth_user_id) return
+    setActionLoading(row.id)
+    const note = rejectReason === 'أخرى' ? (rejectCustom.trim() || 'سبب غير محدد') : rejectReason
+    try {
+      await updateRightStatus(row.id, 'rejected', note)
+      await createNotification({
+        authUserId: row.auth_user_id,
+        title: 'تم رفض طلبك ❌',
+        message: `نأسف، تم رفض تسجيل حقك الفكري "${row.title}". السبب: ${note}. يمكنك تعديل البيانات وإعادة المحاولة.`,
+        type: 'error',
+      })
+      setRights(rs => rs.map(r => r.id === row.id ? { ...r, status: 'rejected', review_note: note } : r))
+      showToast('تم رفض الطلب وإرسال الإشعار للمستخدم', true)
+      setRejectModal(null)
+      setRejectCustom('')
+      setRejectReason(REJECT_REASONS[0])
+    } catch {
+      showToast('حدث خطأ أثناء الرفض', false)
+    } finally {
+      setActionLoading(null)
+    }
+  }
+
+  if (loading || checking) return <div className="adm-center"><div className="bc-spinner" /></div>
+
+  if (!user) return (
+    <div className="adm-center">
+      <p className="adm-denied-msg">يجب تسجيل الدخول أولاً</p>
+      <Link to="/login" className="btn-bc-primary">تسجيل الدخول</Link>
+    </div>
+  )
+
+  if (!isAdmin) return (
+    <div className="adm-center">
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="1.5" strokeLinecap="round">
+        <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+      </svg>
+      <p className="adm-denied-msg">ليس لديك صلاحية الوصول</p>
+      <Link to="/" className="btn-bc-ghost">العودة للرئيسية</Link>
+    </div>
+  )
 
   return (
     <div className="adm-page">
-      {/* Topbar */}
+      {/* Toast */}
+      {toast && (
+        <div className={`adm-toast${toast.ok ? ' adm-toast-ok' : ' adm-toast-err'}`}>
+          {toast.ok ? '✅' : '❌'} {toast.msg}
+        </div>
+      )}
+
+      {/* Reject Modal */}
+      {rejectModal && (
+        <div className="adm-overlay" onClick={() => setRejectModal(null)}>
+          <div className="adm-modal" onClick={e => e.stopPropagation()}>
+            <div className="adm-modal-header">
+              <span className="adm-modal-title">سبب الرفض</span>
+              <button className="wsm-close" onClick={() => setRejectModal(null)}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              </button>
+            </div>
+            <p className="adm-modal-right-title">"{rejectModal.row.title}"</p>
+            <div className="adm-modal-reasons">
+              {REJECT_REASONS.map(r => (
+                <label key={r} className={`adm-reason-opt${rejectReason === r ? ' adm-reason-selected' : ''}`}>
+                  <input type="radio" name="reason" value={r} checked={rejectReason === r} onChange={() => setRejectReason(r)} hidden />
+                  {r}
+                </label>
+              ))}
+            </div>
+            {rejectReason === 'أخرى' && (
+              <textarea
+                className="adm-modal-textarea"
+                placeholder="اكتب السبب..."
+                value={rejectCustom}
+                onChange={e => setRejectCustom(e.target.value)}
+                rows={3}
+              />
+            )}
+            <div className="adm-modal-actions">
+              <button className="adm-btn-cancel" onClick={() => setRejectModal(null)}>إلغاء</button>
+              <button
+                className="adm-btn-reject-confirm"
+                disabled={actionLoading === rejectModal.row.id}
+                onClick={handleRejectConfirm}
+              >
+                {actionLoading === rejectModal.row.id ? <span className="btn-spinner" /> : null}
+                تأكيد الرفض وإرسال الإشعار
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <header className="adm-topbar">
         <Link to="/" className="bc-back-link">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
@@ -122,14 +239,12 @@ export default function AdminDashboard() {
       </header>
 
       <main className="adm-main">
-        {/* Stats */}
         <div className="adm-stats-row">
           <StatCard icon="📋" label="الحقوق المسجلة" value={stats.rights} color="#2563eb" />
-          <StatCard icon="👥" label="المستخدمون" value={stats.users} color="#7c3aed" />
+          <StatCard icon="👥" label="المستخدمون"     value={stats.users}  color="#7c3aed" />
           <StatCard icon="📁" label="الملفات المرفوعة" value={stats.files} color="#059669" />
         </div>
 
-        {/* Tabs */}
         <div className="adm-tabs">
           <button className={`adm-tab${activeTab === 'rights' ? ' adm-tab-active' : ''}`} onClick={() => setActiveTab('rights')}>
             الحقوق المسجلة
@@ -151,15 +266,16 @@ export default function AdminDashboard() {
                   <th>صاحب الحق</th>
                   <th>النوع</th>
                   <th>رقم الشهادة</th>
-                  <th>المحفظة</th>
+                  <th>الحالة</th>
                   <th>التاريخ</th>
+                  <th>الإجراء</th>
                 </tr>
               </thead>
               <tbody>
                 {rights.length === 0 ? (
-                  <tr><td colSpan={7} className="adm-empty-cell">لا توجد بيانات</td></tr>
+                  <tr><td colSpan={8} className="adm-empty-cell">لا توجد بيانات</td></tr>
                 ) : rights.map((r, i) => (
-                  <tr key={r.id}>
+                  <tr key={r.id} className={r.status === 'approved' ? 'adm-row-approved' : r.status === 'rejected' ? 'adm-row-rejected' : ''}>
                     <td className="adm-td-num">{i + 1}</td>
                     <td className="adm-td-title">{r.title || '—'}</td>
                     <td>{r.holder_name || '—'}</td>
@@ -169,8 +285,35 @@ export default function AdminDashboard() {
                       </span>
                     </td>
                     <td className="adm-td-mono">{r.cert_id ? `#${r.cert_id}` : '—'}</td>
-                    <td className="adm-td-mono">{r.wallet_address ? `${r.wallet_address.slice(0,6)}...${r.wallet_address.slice(-4)}` : '—'}</td>
+                    <td>
+                      <StatusBadge status={r.status} />
+                      {r.review_note && r.status === 'rejected' && (
+                        <p className="adm-review-note">{r.review_note}</p>
+                      )}
+                    </td>
                     <td className="adm-td-date">{r.created_at ? new Date(r.created_at).toLocaleDateString('ar-EG') : '—'}</td>
+                    <td>
+                      {(r.status === 'pending' || r.status === null) ? (
+                        <div className="adm-actions">
+                          <button
+                            className="adm-btn-approve"
+                            disabled={actionLoading === r.id}
+                            onClick={() => handleApprove(r)}
+                          >
+                            {actionLoading === r.id ? <span className="btn-spinner" style={{ width: 12, height: 12, borderWidth: 2 }} /> : '✓'} قبول
+                          </button>
+                          <button
+                            className="adm-btn-reject"
+                            disabled={actionLoading === r.id}
+                            onClick={() => { setRejectModal({ row: r }); setRejectReason(REJECT_REASONS[0]); setRejectCustom('') }}
+                          >
+                            ✕ رفض
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="adm-reviewed-label">تمت المراجعة</span>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -181,11 +324,7 @@ export default function AdminDashboard() {
             <table className="adm-table">
               <thead>
                 <tr>
-                  <th>#</th>
-                  <th>الاسم</th>
-                  <th>البريد الإلكتروني</th>
-                  <th>الدور</th>
-                  <th>تاريخ التسجيل</th>
+                  <th>#</th><th>الاسم</th><th>البريد الإلكتروني</th><th>الدور</th><th>تاريخ التسجيل</th>
                 </tr>
               </thead>
               <tbody>

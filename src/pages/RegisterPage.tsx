@@ -42,7 +42,7 @@ export default function RegisterPage() {
 
     setSubmitting(true)
     try {
-      await signUp(email.trim(), password)
+      await signUp(email.trim(), password, name.trim())
       setSuccess(true)
     } catch (err) {
       setError(translateError((err as Error).message))
@@ -94,25 +94,61 @@ export default function RegisterPage() {
         </div>
 
         {success ? (
-          /* Success state */
-          <div className="auth-success-card">
-            <div className="auth-success-icon">
-              <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" />
-              </svg>
+          <motion.div
+            className="welcome-card"
+            initial={{ opacity: 0, scale: 0.95, y: 16 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            transition={{ duration: 0.5, ease: 'easeOut' as const }}
+          >
+            <div className="welcome-confetti">
+              {['🎉', '✨', '🌟', '🎊', '💫'].map((e, i) => (
+                <motion.span
+                  key={i}
+                  className="welcome-confetti-item"
+                  initial={{ opacity: 0, y: 0, x: 0 }}
+                  animate={{ opacity: [0, 1, 0], y: -40, x: (i - 2) * 18 }}
+                  transition={{ delay: i * 0.1, duration: 1.2, ease: 'easeOut' as const }}
+                >{e}</motion.span>
+              ))}
             </div>
-            <h2 className="auth-success-title">تم إنشاء حسابك بنجاح!</h2>
-            <p className="auth-success-desc">
-              تم تسجيل حسابك. قد تحتاج إلى تأكيد بريدك الإلكتروني قبل تسجيل الدخول.
-              يرجى مراجعة صندوق الوارد.
+
+            <div className="welcome-avatar">
+              {name.trim()[0]?.toUpperCase() ?? '؟'}
+            </div>
+
+            <h2 className="welcome-title">أهلاً وسهلاً{name.trim() ? `، ${name.trim().split(' ')[0]}!` : '!'}</h2>
+            <p className="welcome-subtitle">انضممت إلى منصة إدارة الحقوق الملكية والفكرية</p>
+
+            <ul className="welcome-features">
+              <li>
+                <span className="welcome-feat-icon">🔐</span>
+                سجّل حقوقك الفكرية على البلوكتشين
+              </li>
+              <li>
+                <span className="welcome-feat-icon">📜</span>
+                احصل على شهادات رقمية موثّقة
+              </li>
+              <li>
+                <span className="welcome-feat-icon">🔍</span>
+                تحقق من أي حق مسجّل بسهولة
+              </li>
+            </ul>
+
+            <p className="welcome-email-note">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                <polyline points="22,6 12,13 2,6"/>
+              </svg>
+              تحقق من بريدك <strong>{email}</strong> لتأكيد الحساب
             </p>
-            <button className="btn-auth-outline" onClick={() => navigate('/login')}>
-              الذهاب لتسجيل الدخول
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="15 18 9 12 15 6" />
+
+            <button className="btn-auth" onClick={() => navigate('/login')}>
+              ابدأ الآن
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="15 18 9 12 15 6"/>
               </svg>
             </button>
-          </div>
+          </motion.div>
         ) : (
           <>
             <h1 className="auth-title">إنشاء حساب جديد</h1>

@@ -62,6 +62,64 @@ export async function uploadIPFile(file: File, certId: string): Promise<void> {
   if (dbErr) throw dbErr
 }
 
+// ─── مراجعة الحقوق (أدمن) ────────────────────────────────────────────────────
+export async function updateRightStatus(
+  id: number,
+  status: 'approved' | 'rejected',
+  reviewNote?: string
+): Promise<void> {
+  const { error } = await supabase
+    .from('Rights')
+    .update({ status, review_note: reviewNote ?? null })
+    .eq('id', id)
+  if (error) throw error
+}
+
+// ─── الإشعارات ────────────────────────────────────────────────────────────────
+export interface Notification {
+  id: number
+  auth_user_id: string
+  title: string
+  message: string
+  type: 'success' | 'error' | 'info'
+  is_read: boolean
+  created_at: string
+}
+
+export async function createNotification(params: {
+  authUserId: string
+  title: string
+  message: string
+  type: 'success' | 'error' | 'info'
+}): Promise<void> {
+  const { error } = await supabase.from('notifications').insert({
+    auth_user_id: params.authUserId,
+    title: params.title,
+    message: params.message,
+    type: params.type,
+  })
+  if (error) throw error
+}
+
+export async function getUserNotifications(authUserId: string): Promise<Notification[]> {
+  const { data, error } = await supabase
+    .from('notifications')
+    .select('*')
+    .eq('auth_user_id', authUserId)
+    .order('created_at', { ascending: false })
+    .limit(30)
+  if (error) throw error
+  return (data ?? []) as Notification[]
+}
+
+export async function markNotificationsRead(authUserId: string): Promise<void> {
+  await supabase
+    .from('notifications')
+    .update({ is_read: true })
+    .eq('auth_user_id', authUserId)
+    .eq('is_read', false)
+}
+
 // ─── جلب شهادات المستخدم من Supabase ─────────────────────────────────────────
 export async function getUserCerts(userId: string): Promise<RightsRow[]> {
   const { data, error } = await supabase

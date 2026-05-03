@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Link } from 'react-router-dom'
 import { useWallet } from '../hooks/useWallet'
@@ -42,9 +42,16 @@ function StepDot({ num, label, active, done }: { num: number; label: string; act
 
 export default function RegisterRightPage() {
   const wallet = useWallet()
-  const { user }  = useAuth()
+  const { user } = useAuth()
   const [step, setStep] = useState<Step>('form')
   const [form, setForm] = useState<FormData>({ title: '', ipType: 0, description: '', holderName: '' })
+
+  useEffect(() => {
+    const savedName = user?.user_metadata?.full_name as string | undefined
+    if (savedName) {
+      setForm(f => ({ ...f, holderName: f.holderName || savedName }))
+    }
+  }, [user])
   const [processing, setProcessing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<Result | null>(null)
