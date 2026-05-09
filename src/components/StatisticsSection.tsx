@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { motion, useInView } from 'framer-motion'
+import { useLang } from '../context/LanguageContext'
 
 const EASE = 'easeOut' as const
 
@@ -27,12 +28,6 @@ function useCounter(target: number, duration = 2200, active = false) {
   return value
 }
 
-const STATS = [
-  { target: 10000, suffix: '+', label: 'حق مسجل' },
-  { target: 5000, suffix: '+', label: 'مستخدم نشط' },
-  { target: 15, suffix: '+', label: 'سنة خبرة' },
-]
-
 function StatItem({ target, suffix, label, active }: {
   target: number
   suffix: string
@@ -54,8 +49,15 @@ function StatItem({ target, suffix, label, active }: {
 }
 
 export default function StatisticsSection() {
+  const { t } = useLang()
   const ref = useRef<HTMLDivElement>(null)
   const inView = useInView(ref, { once: true, amount: 0.3 })
+
+  const STATS = [
+    { target: 10000, suffix: '+', labelKey: 'stats.rights' },
+    { target: 5000,  suffix: '+', labelKey: 'stats.users' },
+    { target: 15,    suffix: '+', labelKey: 'stats.years' },
+  ]
 
   return (
     <section className="stats-section" id="about">
@@ -69,18 +71,18 @@ export default function StatisticsSection() {
           transition={{ duration: 0.55, ease: EASE }}
         >
           <div className="section-badge" style={{ background: 'rgba(96,165,250,0.15)', color: '#93c5fd' }}>
-            بالأرقام
+            {t('stats.badge')}
           </div>
-          <h2 className="section-title" style={{ color: '#fff' }}>إنجازاتنا تتحدث عنا</h2>
+          <h2 className="section-title" style={{ color: '#fff' }}>{t('stats.title')}</h2>
           <p className="section-subtitle" style={{ color: 'rgba(255,255,255,0.65)' }}>
-            أرقام حقيقية تعكس ثقة عملائنا ومستوى خدماتنا المتميزة على مدار سنوات من العطاء.
+            {t('stats.subtitle')}
           </p>
         </motion.div>
 
         <div className="stats-grid" ref={ref}>
           {STATS.map((stat, i) => (
             <motion.div
-              key={stat.label}
+              key={stat.labelKey}
               initial={{ opacity: 0, y: 28 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
@@ -89,7 +91,7 @@ export default function StatisticsSection() {
               <StatItem
                 target={stat.target}
                 suffix={stat.suffix}
-                label={stat.label}
+                label={t(stat.labelKey)}
                 active={inView}
               />
             </motion.div>

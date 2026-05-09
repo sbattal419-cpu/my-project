@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Link } from 'react-router-dom'
 import { fetchCertificate, verifyByHash, truncateAddress } from '../lib/blockchain'
 import { IP_TYPES, BLOCKCHAIN } from '../config/blockchain.config'
+import { useLang } from '../context/LanguageContext'
 import type { CertificateData } from '../lib/blockchain'
 
 const EASE = 'easeOut' as const
@@ -10,52 +11,53 @@ const EASE = 'easeOut' as const
 type Tab = 'id' | 'hash'
 
 function CertResult({ cert }: { cert: CertificateData }) {
+  const { t, lang } = useLang()
   const ipType = IP_TYPES[cert.ipType] ?? IP_TYPES[0]
   return (
     <div className="bc-verify-result">
       <div className="bc-verify-result-header">
         <div className="bc-verify-result-title-row">
           <span className="ip-badge" style={{ background: ipType.bg, color: ipType.color }}>
-            {ipType.label}
+            {t(ipType.labelKey)}
           </span>
           <h2 className="bc-verify-title">{cert.title}</h2>
         </div>
         <div className={`bc-validity-badge${cert.isValid ? ' bc-valid' : ' bc-invalid'}`}>
           {cert.isValid ? (
-            <><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg> صالحة</>
+            <><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg> {t('vfy.valid')}</>
           ) : (
-            <><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg> ملغاة</>
+            <><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg> {t('vfy.revoked')}</>
           )}
         </div>
       </div>
 
       <div className="bc-verify-details">
         <div className="bc-vd-row">
-          <span className="bc-vd-key">رقم الشهادة</span>
+          <span className="bc-vd-key">{t('vfy.f.cert.id')}</span>
           <span className="bc-vd-val bc-cert-num">#{cert.certId}</span>
         </div>
         <div className="bc-vd-row">
-          <span className="bc-vd-key">صاحب الحق</span>
+          <span className="bc-vd-key">{t('vfy.f.holder')}</span>
           <span className="bc-vd-val">{cert.holderName}</span>
         </div>
         <div className="bc-vd-row">
-          <span className="bc-vd-key">المالك على البلوكتشين</span>
+          <span className="bc-vd-key">{t('vfy.f.bc.owner')}</span>
           <span className="bc-vd-val bc-mono">{truncateAddress(cert.owner)}</span>
         </div>
         <div className="bc-vd-row">
-          <span className="bc-vd-key">تاريخ التسجيل</span>
+          <span className="bc-vd-key">{t('vfy.f.reg.date')}</span>
           <span className="bc-vd-val">
-            {cert.registeredAt.toLocaleDateString('ar-EG', { year: 'numeric', month: 'long', day: 'numeric' })}
+            {cert.registeredAt.toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
           </span>
         </div>
         {cert.description && (
           <div className="bc-vd-row">
-            <span className="bc-vd-key">الوصف</span>
+            <span className="bc-vd-key">{t('vfy.f.desc')}</span>
             <span className="bc-vd-val">{cert.description}</span>
           </div>
         )}
         <div className="bc-vd-row bc-vd-row-hash">
-          <span className="bc-vd-key">هاش الوثيقة</span>
+          <span className="bc-vd-key">{t('vfy.f.doc.hash')}</span>
           <span className="bc-vd-val bc-mono bc-hash-break">{cert.documentHash}</span>
         </div>
       </div>
@@ -67,7 +69,7 @@ function CertResult({ cert }: { cert: CertificateData }) {
           rel="noopener noreferrer"
           className="btn-bc-outline btn-bc-sm"
         >
-          عرض على Etherscan
+          {t('vfy.etherscan')}
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" />
           </svg>
@@ -78,6 +80,7 @@ function CertResult({ cert }: { cert: CertificateData }) {
 }
 
 export default function VerifyPage() {
+  const { t } = useLang()
   const [tab, setTab] = useState<Tab>('id')
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
@@ -101,19 +104,19 @@ export default function VerifyPage() {
       let certId = val
       if (tab === 'hash') {
         const id = await verifyByHash(val)
-        if (id === '0') throw new Error('لم يتم العثور على شهادة مسجلة بهذا الهاش')
+        if (id === '0') throw new Error('no_hash')
         certId = id
       }
       const data = await fetchCertificate(certId)
       setCert(data)
     } catch (err) {
       const msg = (err as Error).message ?? ''
-      if (msg.includes('Certificate not found') || msg.includes('not found')) {
-        setError('لا توجد شهادة بهذا الرقم')
-      } else if (msg.includes('لم يتم العثور')) {
-        setError(msg)
+      if (msg === 'no_hash') {
+        setError(t('vfy.err.no.hash'))
+      } else if (msg.includes('Certificate not found') || msg.includes('not found')) {
+        setError(t('vfy.err.no.id'))
       } else {
-        setError('فشل التحقق. تأكد من صحة القيمة المدخلة.')
+        setError(t('vfy.err.fail'))
       }
     } finally {
       setLoading(false)
@@ -127,7 +130,7 @@ export default function VerifyPage() {
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="m9 18 6-6-6-6" />
           </svg>
-          الرئيسية
+          {t('pg.back')}
         </Link>
 
         <div className="bc-topbar-logo">
@@ -136,7 +139,7 @@ export default function VerifyPage() {
               fill="rgba(37,99,235,0.18)" stroke="#3b82f6" strokeWidth="1.5" strokeLinejoin="round" />
             <path d="M14 22L19.5 28.5L30 16" stroke="#60a5fa" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
-          <span>إدارة الحقوق الملكية</span>
+          <span>{t('pg.brand')}</span>
         </div>
 
         <div style={{ width: 200 }} />
@@ -149,8 +152,8 @@ export default function VerifyPage() {
               <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
             </svg>
           </div>
-          <h1 className="bc-page-title">التحقق من الحقوق</h1>
-          <p className="bc-page-desc">تحقق من صحة أي حق فكري مسجل على البلوكتشين</p>
+          <h1 className="bc-page-title">{t('vfy.page.title')}</h1>
+          <p className="bc-page-desc">{t('vfy.page.desc')}</p>
         </div>
 
         <div className="bc-card">
@@ -159,20 +162,20 @@ export default function VerifyPage() {
               className={`bc-tab${tab === 'id' ? ' bc-tab-active' : ''}`}
               onClick={() => reset('id')}
             >
-              بحث برقم الشهادة
+              {t('vfy.tab.id')}
             </button>
             <button
               className={`bc-tab${tab === 'hash' ? ' bc-tab-active' : ''}`}
               onClick={() => reset('hash')}
             >
-              بحث بهاش الوثيقة
+              {t('vfy.tab.hash')}
             </button>
           </div>
 
           <div className="bc-search-row">
             <input
               className="bc-input bc-search-input"
-              placeholder={tab === 'id' ? 'أدخل رقم الشهادة (مثال: 1)' : 'أدخل هاش الوثيقة (0x...)'}
+              placeholder={tab === 'id' ? t('vfy.ph.id') : t('vfy.ph.hash')}
               value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && !loading && handleSearch()}
@@ -183,12 +186,12 @@ export default function VerifyPage() {
               disabled={!input.trim() || loading}
             >
               {loading
-                ? <><span className="btn-spinner" /> بحث...</>
+                ? <><span className="btn-spinner" /> {t('vfy.searching')}</>
                 : <>
                   <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                     <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
                   </svg>
-                  بحث
+                  {t('vfy.search')}
                 </>}
             </button>
           </div>
@@ -221,10 +224,10 @@ export default function VerifyPage() {
 
         <div className="bc-verify-links">
           <Link to="/register-right" className="btn-bc-outline">
-            تسجيل حق جديد
+            {t('vfy.link.reg')}
           </Link>
           <Link to="/certificates" className="btn-bc-outline">
-            شهاداتي الرقمية
+            {t('vfy.link.certs')}
           </Link>
         </div>
       </main>

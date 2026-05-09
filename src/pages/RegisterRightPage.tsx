@@ -5,6 +5,7 @@ import { useWallet } from '../hooks/useWallet'
 import { registerIPOnChain, hashFile, isContractDeployed } from '../lib/blockchain'
 import { saveCertToSupabase, uploadIPFile } from '../lib/supabase-ipr'
 import { useAuth } from '../context/AuthContext'
+import { useLang } from '../context/LanguageContext'
 import { IP_TYPES, BLOCKCHAIN } from '../config/blockchain.config'
 import WalletConnect from '../components/WalletConnect'
 import { playSuccess, playError } from '../lib/sounds'
@@ -43,6 +44,7 @@ function StepDot({ num, label, active, done }: { num: number; label: string; act
 export default function RegisterRightPage() {
   const wallet = useWallet()
   const { user } = useAuth()
+  const { t } = useLang()
   const [step, setStep] = useState<Step>('form')
   const [form, setForm] = useState<FormData>({ title: '', ipType: 0, description: '', holderName: '' })
 
@@ -62,7 +64,7 @@ export default function RegisterRightPage() {
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = e.target.files?.[0]
     if (!selected) return
-    if (selected.size > 50 * 1024 * 1024) { setError('حجم الملف يجب أن يكون أقل من 50 ميغابايت'); return }
+    if (selected.size > 50 * 1024 * 1024) { setError(t('rr.file.toobig')); return }
     setFile(selected)
     setHashing(true)
     try {
@@ -92,7 +94,6 @@ export default function RegisterRightPage() {
         fileHash: fileHash ?? undefined,
       })
 
-      // حفظ في Supabase إذا كان المستخدم مسجلاً
       if (user) {
         try {
           await saveCertToSupabase({
@@ -119,11 +120,11 @@ export default function RegisterRightPage() {
       const msg = (err as Error).message ?? ''
       playError()
       if (msg.toLowerCase().includes('user rejected') || msg.toLowerCase().includes('rejected')) {
-        setError('تم رفض المعاملة من المحفظة')
+        setError(t('rr.err.rejected'))
       } else if (msg.toLowerCase().includes('already registered') || msg.toLowerCase().includes('execution reverted')) {
-        setError('هذا الملف مسجل مسبقاً على البلوكتشين. استخدمي ملفاً مختلفاً.')
+        setError(t('rr.err.duplicate'))
       } else {
-        setError('فشل التسجيل. يرجى التأكد من توفر ETH تجريبي كافٍ ثم المحاولة مجدداً.')
+        setError(t('rr.err.failed'))
       }
     } finally {
       setProcessing(false)
@@ -139,7 +140,7 @@ export default function RegisterRightPage() {
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="m9 18 6-6-6-6" />
           </svg>
-          الرئيسية
+          {t('pg.back')}
         </Link>
 
         <div className="bc-topbar-logo">
@@ -148,25 +149,107 @@ export default function RegisterRightPage() {
               fill="rgba(37,99,235,0.18)" stroke="#3b82f6" strokeWidth="1.5" strokeLinejoin="round" />
             <path d="M14 22L19.5 28.5L30 16" stroke="#60a5fa" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
-          <span>إدارة الحقوق الملكية</span>
+          <span>{t('pg.brand')}</span>
         </div>
 
         <WalletConnect showDisconnect={false} />
       </header>
 
-      <main className="bc-main">
+      {/* ── Motivational banner ── */}
+      <motion.div
+        className="rr-motivate"
+        initial={{ opacity: 0, y: -16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, ease: EASE }}
+      >
+        <div className="rr-motivate-bg" />
+        <div className="rr-motivate-inner">
+          {/* Left: text */}
+          <div className="rr-motivate-text">
+            <div className="rr-motivate-badge">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+              </svg>
+              منصة رسمية معتمدة
+            </div>
+            <h2 className="rr-motivate-title">
+              سجّل حقوقك على البلوكشين
+              <span className="rr-motivate-accent"> واحفظ إبداعك للأبد</span>
+            </h2>
+            <p className="rr-motivate-desc">
+              توثيق لا يُزال ولا يُزوَّر — كل عمل إبداعي يستحق حماية حقيقية وفق أعلى المعايير القانونية.
+            </p>
+            <div className="rr-motivate-benefits">
+              {[
+                'توثيق فوري وغير قابل للتزوير',
+                'شهادة رقمية معتمدة قانونياً',
+                'حماية دائمة لحقوقك الفكرية',
+                'أكثر من 10,000 حق مسجّل بثقة',
+              ].map((b, i) => (
+                <motion.div
+                  key={i}
+                  className="rr-motivate-benefit"
+                  initial={{ opacity: 0, x: 12 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.4, ease: EASE, delay: 0.3 + i * 0.08 }}
+                >
+                  <span className="rr-motivate-check">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="20 6 9 17 4 12"/>
+                    </svg>
+                  </span>
+                  {b}
+                </motion.div>
+              ))}
+            </div>
+          </div>
+
+          {/* Right: stat cards */}
+          <div className="rr-motivate-stats">
+            {[
+              { num: '+10K', label: 'حق مسجّل موثّق' },
+              { num: '100%', label: 'أمان بلوكشين' },
+              { num: '< 2د', label: 'وقت التسجيل' },
+            ].map((s, i) => (
+              <motion.div
+                key={i}
+                className="rr-motivate-stat"
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.45, ease: EASE, delay: 0.4 + i * 0.1 }}
+              >
+                <span className="rr-motivate-stat-num">{s.num}</span>
+                <span className="rr-motivate-stat-label">{s.label}</span>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </motion.div>
+
+      <div className="rr-content-split">
+        {/* ── Illustration panel ── */}
+        <div className="rr-illus-col">
+          <ProtectionIllustration />
+          <div className="rr-illus-label">
+            <p>حماية حقوقك الفكرية</p>
+            <p>موثّقة على البلوكشين</p>
+          </div>
+        </div>
+
+        {/* ── Form panel ── */}
+        <main className="bc-main">
         {!isContractDeployed() && (
           <div className="bc-alert bc-alert-warn bc-deploy-warn">
-            العقد الذكي لم يُنشر بعد. راجع ملف <code>.env.local</code> وأضف <code>VITE_CONTRACT_ADDRESS</code>.
+            {t('rr.err.failed')}
           </div>
         )}
 
         <div className="bc-steps-bar">
-          <StepDot num={1} label="بيانات الحق" active={step === 'form'} done={step !== 'form'} />
+          <StepDot num={1} label={t('rr.step1')} active={step === 'form'} done={step !== 'form'} />
           <div className={`bc-step-connector${step !== 'form' ? ' bc-connector-done' : ''}`} />
-          <StepDot num={2} label="تأكيد ودفع" active={step === 'confirm'} done={step === 'success'} />
+          <StepDot num={2} label={t('rr.step2')} active={step === 'confirm'} done={step === 'success'} />
           <div className={`bc-step-connector${step === 'success' ? ' bc-connector-done' : ''}`} />
-          <StepDot num={3} label="الشهادة" active={step === 'success'} done={false} />
+          <StepDot num={3} label={t('rr.step3')} active={step === 'success'} done={false} />
         </div>
 
         <AnimatePresence mode="wait">
@@ -179,32 +262,32 @@ export default function RegisterRightPage() {
               exit={{ opacity: 0, y: -14 }}
               transition={{ duration: 0.3, ease: EASE }}
             >
-              <h1 className="bc-card-title">تسجيل حق فكري جديد</h1>
-              <p className="bc-card-desc">أدخل بيانات الحق لتسجيله على البلوكتشين بشكل دائم وآمن</p>
+              <h1 className="bc-card-title">{t('rr.form.title')}</h1>
+              <p className="bc-card-desc">{t('rr.form.desc')}</p>
 
               <form className="bc-form" onSubmit={handleFormSubmit}>
                 <div className="bc-form-group">
-                  <label className="bc-label">نوع الحق الفكري</label>
+                  <label className="bc-label">{t('rr.ip.type')}</label>
                   <div className="ip-type-grid">
-                    {IP_TYPES.map(t => (
+                    {IP_TYPES.map(tp => (
                       <button
-                        key={t.value}
+                        key={tp.value}
                         type="button"
-                        className={`ip-type-btn${form.ipType === t.value ? ' ip-type-selected' : ''}`}
-                        style={{ '--type-color': t.color, '--type-bg': t.bg } as React.CSSProperties}
-                        onClick={() => setForm(f => ({ ...f, ipType: t.value }))}
+                        className={`ip-type-btn${form.ipType === tp.value ? ' ip-type-selected' : ''}`}
+                        style={{ '--type-color': tp.color, '--type-bg': tp.bg } as React.CSSProperties}
+                        onClick={() => setForm(f => ({ ...f, ipType: tp.value }))}
                       >
-                        {t.label}
+                        {t(tp.labelKey)}
                       </button>
                     ))}
                   </div>
                 </div>
 
                 <div className="bc-form-group">
-                  <label className="bc-label">عنوان الحق <span className="bc-required">*</span></label>
+                  <label className="bc-label">{t('rr.f.title')} <span className="bc-required">*</span></label>
                   <input
                     className="bc-input"
-                    placeholder='مثال: رواية "الطريق الطويل"'
+                    placeholder={t('rr.ph.title')}
                     value={form.title}
                     onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
                     required
@@ -212,10 +295,10 @@ export default function RegisterRightPage() {
                 </div>
 
                 <div className="bc-form-group">
-                  <label className="bc-label">اسم صاحب الحق <span className="bc-required">*</span></label>
+                  <label className="bc-label">{t('rr.f.holder')} <span className="bc-required">*</span></label>
                   <input
                     className="bc-input"
-                    placeholder="الاسم الكامل لصاحب الحق"
+                    placeholder={t('rr.ph.holder')}
                     value={form.holderName}
                     onChange={e => setForm(f => ({ ...f, holderName: e.target.value }))}
                     required
@@ -223,21 +306,20 @@ export default function RegisterRightPage() {
                 </div>
 
                 <div className="bc-form-group">
-                  <label className="bc-label">وصف الحق <span className="bc-optional">(اختياري)</span></label>
+                  <label className="bc-label">{t('rr.f.desc')} <span className="bc-optional">{t('rr.optional')}</span></label>
                   <textarea
                     className="bc-input bc-textarea"
                     rows={3}
-                    placeholder="وصف مختصر للحق الفكري وتفاصيله..."
+                    placeholder={t('rr.ph.desc')}
                     value={form.description}
                     onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
                   />
                 </div>
 
-                {/* رفع الملف */}
                 <div className="bc-form-group">
                   <label className="bc-label">
-                    الملف المراد حمايته
-                    <span className="bc-optional"> (اختياري — صورة، PDF، ...)</span>
+                    {t('rr.file.label')}
+                    <span className="bc-optional"> {t('rr.file.opt')}</span>
                   </label>
                   <label className={`file-upload-zone${file ? ' file-upload-zone--has' : ''}`}>
                     <input type="file" className="file-upload-input" onChange={handleFileChange} accept="*/*" />
@@ -246,8 +328,8 @@ export default function RegisterRightPage() {
                         <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="1.5" strokeLinecap="round">
                           <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
                         </svg>
-                        <p className="file-upload-hint">اضغط لاختيار ملف أو اسحبه هنا</p>
-                        <p className="file-upload-sub">الحد الأقصى 50 ميغابايت</p>
+                        <p className="file-upload-hint">{t('rr.file.hint')}</p>
+                        <p className="file-upload-sub">{t('rr.file.max')}</p>
                       </>
                     ) : (
                       <div className="file-upload-preview">
@@ -257,7 +339,7 @@ export default function RegisterRightPage() {
                         <div>
                           <p className="file-upload-name">{file.name}</p>
                           <p className="file-upload-size">{(file.size / 1024).toFixed(1)} KB</p>
-                          {hashing && <p className="file-upload-hashing">جاري حساب الهاش...</p>}
+                          {hashing && <p className="file-upload-hashing">{t('rr.file.hashing')}</p>}
                           {fileHash && !hashing && (
                             <p className="file-upload-hash">
                               SHA-256: {fileHash.slice(0, 14)}...{fileHash.slice(-6)}
@@ -275,7 +357,7 @@ export default function RegisterRightPage() {
                   className="btn-bc-primary"
                   disabled={!form.title.trim() || !form.holderName.trim() || hashing}
                 >
-                  التالي: مراجعة وتأكيد
+                  {t('rr.next')}
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                     <path d="m15 18-6-6 6-6" />
                   </svg>
@@ -293,43 +375,43 @@ export default function RegisterRightPage() {
               exit={{ opacity: 0, y: -14 }}
               transition={{ duration: 0.3, ease: EASE }}
             >
-              <h1 className="bc-card-title">مراجعة وتأكيد</h1>
-              <p className="bc-card-desc">تحقق من البيانات وربط محفظتك قبل الإرسال إلى البلوكتشين</p>
+              <h1 className="bc-card-title">{t('rr.confirm.title')}</h1>
+              <p className="bc-card-desc">{t('rr.confirm.desc')}</p>
 
-              <p className="bc-section-label">حالة المحفظة</p>
+              <p className="bc-section-label">{t('rr.wallet.status')}</p>
               <WalletConnect />
 
-              <p className="bc-section-label" style={{ marginTop: 28 }}>ملخص بيانات الحق</p>
+              <p className="bc-section-label" style={{ marginTop: 28 }}>{t('rr.summary')}</p>
               <div className="bc-review-box">
                 <div className="bc-review-row">
-                  <span className="bc-review-key">النوع</span>
+                  <span className="bc-review-key">{t('rr.rf.type')}</span>
                   <span className="ip-badge" style={{ background: ipTypeInfo.bg, color: ipTypeInfo.color }}>
-                    {ipTypeInfo.label}
+                    {t(ipTypeInfo.labelKey)}
                   </span>
                 </div>
                 <div className="bc-review-row">
-                  <span className="bc-review-key">العنوان</span>
+                  <span className="bc-review-key">{t('rr.rf.title')}</span>
                   <span className="bc-review-val">{form.title}</span>
                 </div>
                 <div className="bc-review-row">
-                  <span className="bc-review-key">صاحب الحق</span>
+                  <span className="bc-review-key">{t('rr.rf.holder')}</span>
                   <span className="bc-review-val">{form.holderName}</span>
                 </div>
                 {form.description && (
                   <div className="bc-review-row">
-                    <span className="bc-review-key">الوصف</span>
+                    <span className="bc-review-key">{t('rr.rf.desc')}</span>
                     <span className="bc-review-val">{form.description}</span>
                   </div>
                 )}
                 {file && (
                   <div className="bc-review-row">
-                    <span className="bc-review-key">الملف</span>
+                    <span className="bc-review-key">{t('rr.rf.file')}</span>
                     <span className="bc-review-val bc-mono-sm">{file.name}</span>
                   </div>
                 )}
                 {fileHash && (
                   <div className="bc-review-row">
-                    <span className="bc-review-key">هاش الملف</span>
+                    <span className="bc-review-key">{t('rr.rf.hash')}</span>
                     <span className="bc-review-val bc-mono-sm">{fileHash.slice(0, 14)}...{fileHash.slice(-6)}</span>
                   </div>
                 )}
@@ -341,7 +423,7 @@ export default function RegisterRightPage() {
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
                 </svg>
-                ستُرسل معاملة إلى Sepolia Testnet. تأكد من توفر ETH تجريبي لرسوم الغاز.
+                {t('rr.gas.note')}
               </div>
 
               <div className="bc-confirm-actions">
@@ -349,7 +431,7 @@ export default function RegisterRightPage() {
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                     <path d="m9 18 6-6-6-6" />
                   </svg>
-                  السابق
+                  {t('rr.prev')}
                 </button>
                 <button
                   className="btn-bc-primary"
@@ -357,8 +439,8 @@ export default function RegisterRightPage() {
                   disabled={!wallet.isConnected || !wallet.isSepolia || processing}
                 >
                   {processing
-                    ? <><span className="btn-spinner" /> جاري التسجيل...</>
-                    : <>تسجيل الآن</>}
+                    ? <><span className="btn-spinner" /> {t('rr.processing')}</>
+                    : <>{t('rr.submit')}</>}
                 </button>
               </div>
             </motion.div>
@@ -377,16 +459,16 @@ export default function RegisterRightPage() {
                   <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" />
                 </svg>
               </div>
-              <h1 className="bc-success-title">تم التسجيل بنجاح!</h1>
-              <p className="bc-card-desc">تم تسجيل حقك الفكري على البلوكتشين بشكل دائم وثابت</p>
+              <h1 className="bc-success-title">{t('rr.success.title')}</h1>
+              <p className="bc-card-desc">{t('rr.success.desc')}</p>
 
               <div className="bc-cert-result-box">
                 <div className="bc-cert-row-item">
-                  <span className="bc-cert-rkey">رقم الشهادة</span>
+                  <span className="bc-cert-rkey">{t('rr.result.cert.id')}</span>
                   <span className="bc-cert-rval bc-cert-id-big">#{result.certId}</span>
                 </div>
                 <div className="bc-cert-row-item">
-                  <span className="bc-cert-rkey">معرف المعاملة (TxHash)</span>
+                  <span className="bc-cert-rkey">{t('rr.result.tx')}</span>
                   <a
                     className="bc-cert-rval bc-hash-link"
                     href={`${BLOCKCHAIN.EXPLORER}/tx/${result.txHash}`}
@@ -397,23 +479,202 @@ export default function RegisterRightPage() {
                   </a>
                 </div>
                 <div className="bc-cert-row-item">
-                  <span className="bc-cert-rkey">هاش الوثيقة</span>
+                  <span className="bc-cert-rkey">{t('rr.result.hash')}</span>
                   <span className="bc-cert-rval bc-mono-sm">{result.documentHash.slice(0, 18)}...{result.documentHash.slice(-8)}</span>
                 </div>
                 <div className="bc-cert-row-item">
-                  <span className="bc-cert-rkey">رقم الكتلة</span>
+                  <span className="bc-cert-rkey">{t('rr.result.block')}</span>
                   <span className="bc-cert-rval">{result.blockNumber}</span>
                 </div>
               </div>
 
               <div className="bc-success-actions">
-                <Link to="/certificates" className="btn-bc-primary">عرض شهاداتي</Link>
-                <Link to="/verify" className="btn-bc-outline">التحقق من شهادة</Link>
+                <Link to="/certificates" className="btn-bc-primary">{t('rr.view.certs')}</Link>
+                <Link to="/verify" className="btn-bc-outline">{t('rr.verify.cert')}</Link>
               </div>
             </motion.div>
           )}
         </AnimatePresence>
-      </main>
+        </main>
+      </div>
     </div>
+  )
+}
+
+/* ── Protection Illustration ── */
+function ProtectionIllustration() {
+  return (
+    <svg width="300" height="420" viewBox="0 0 300 420" fill="none" xmlns="http://www.w3.org/2000/svg">
+
+      {/* Ground shadow */}
+      <ellipse cx="150" cy="400" rx="78" ry="11" fill="rgba(37,99,235,0.13)" />
+
+      {/* Outer shield glow aura */}
+      <motion.path
+        d="M150 30 L252 76 L252 208 C252 278 150 320 150 320 C150 320 48 278 48 208 L48 76 Z"
+        fill="rgba(37,99,235,0.07)"
+        stroke="rgba(96,165,250,0.4)"
+        strokeWidth="1.5"
+        animate={{ opacity: [0.7, 1, 0.7] }}
+        transition={{ duration: 2.8, repeat: Infinity, ease: 'easeInOut' }}
+      />
+      {/* Inner shield dashed */}
+      <path
+        d="M150 52 L230 90 L230 200 C230 256 150 293 150 293 C150 293 70 256 70 200 L70 90 Z"
+        fill="rgba(37,99,235,0.09)"
+        stroke="rgba(96,165,250,0.22)"
+        strokeWidth="1"
+        strokeDasharray="5 3"
+      />
+
+      {/* ── Person figure ── */}
+      {/* Head */}
+      <motion.circle
+        cx="150" cy="116" r="32"
+        fill="url(#hGrad)"
+        stroke="rgba(96,165,250,0.45)"
+        strokeWidth="1.5"
+        animate={{ scale: [1, 1.015, 1] }}
+        transition={{ duration: 3.5, repeat: Infinity, ease: 'easeInOut' }}
+      />
+      {/* Head shine */}
+      <ellipse cx="139" cy="105" rx="9" ry="6" fill="rgba(255,255,255,0.18)" transform="rotate(-20 139 105)" />
+
+      {/* Body */}
+      <motion.path
+        d="M113 152 C105 152 99 159 99 168 L99 245 C99 253 105 260 113 260 L187 260 C195 260 201 253 201 245 L201 168 C201 159 195 152 187 152 Z"
+        fill="url(#bGrad)"
+        animate={{ scale: [1, 1.012, 1] }}
+        transition={{ duration: 3.5, repeat: Infinity, ease: 'easeInOut' }}
+      />
+
+      {/* Right arm */}
+      <motion.path
+        d="M196 183 Q228 190 248 207"
+        stroke="url(#aGradR)"
+        strokeWidth="17"
+        strokeLinecap="round"
+        fill="none"
+        animate={{ d: ['M196 183 Q228 190 248 207', 'M196 183 Q228 188 248 203', 'M196 183 Q228 190 248 207'] }}
+        transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+      />
+      {/* Left arm */}
+      <motion.path
+        d="M104 183 Q72 190 52 207"
+        stroke="url(#aGradL)"
+        strokeWidth="17"
+        strokeLinecap="round"
+        fill="none"
+        animate={{ d: ['M104 183 Q72 190 52 207', 'M104 183 Q72 188 52 203', 'M104 183 Q72 190 52 207'] }}
+        transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut', delay: 0.15 }}
+      />
+
+      {/* Right hand glow */}
+      <motion.circle
+        cx="252" cy="210" r="14"
+        fill="rgba(37,99,235,0.6)"
+        stroke="rgba(96,165,250,0.75)"
+        strokeWidth="1.5"
+        animate={{ r: [14, 17, 14], opacity: [0.75, 1, 0.75] }}
+        transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}
+      />
+      {/* Left hand glow */}
+      <motion.circle
+        cx="48" cy="210" r="14"
+        fill="rgba(37,99,235,0.6)"
+        stroke="rgba(96,165,250,0.75)"
+        strokeWidth="1.5"
+        animate={{ r: [14, 17, 14], opacity: [0.75, 1, 0.75] }}
+        transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut', delay: 0.3 }}
+      />
+
+      {/* Legs */}
+      <rect x="112" y="259" width="28" height="54" rx="9" fill="url(#lGrad)" />
+      <rect x="160" y="259" width="28" height="54" rx="9" fill="url(#lGrad)" />
+
+      {/* Lock icon on chest */}
+      <rect x="130" y="188" width="40" height="34" rx="7" fill="rgba(37,99,235,0.88)" stroke="rgba(96,165,250,0.65)" strokeWidth="1.5" />
+      <path d="M141 188 L141 178 C141 168 159 168 159 178 L159 188" fill="none" stroke="#60a5fa" strokeWidth="2.5" strokeLinecap="round" />
+      <circle cx="150" cy="205" r="5" fill="rgba(255,255,255,0.9)" />
+      <rect x="148" y="205" width="4" height="9" rx="2" fill="rgba(255,255,255,0.9)" />
+
+      {/* ── Floating IP badges ── */}
+      {/* © top-left */}
+      <motion.g animate={{ y: [-8, 8, -8] }} transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}>
+        <circle cx="28" cy="90" r="22" fill="rgba(37,99,235,0.18)" stroke="rgba(96,165,250,0.55)" strokeWidth="1.5" />
+        <text x="28" y="98" textAnchor="middle" fill="#93c5fd" fontSize="20" fontWeight="700" fontFamily="serif">©</text>
+      </motion.g>
+
+      {/* ® top-right */}
+      <motion.g animate={{ y: [7, -7, 7] }} transition={{ duration: 3.6, repeat: Infinity, ease: 'easeInOut', delay: 0.6 }}>
+        <circle cx="273" cy="78" r="19" fill="rgba(139,92,246,0.18)" stroke="rgba(167,139,250,0.55)" strokeWidth="1.5" />
+        <text x="273" y="85" textAnchor="middle" fill="#c4b5fd" fontSize="16" fontWeight="700" fontFamily="serif">®</text>
+      </motion.g>
+
+      {/* ™ right side */}
+      <motion.g animate={{ y: [-5, 5, -5] }} transition={{ duration: 4.8, repeat: Infinity, ease: 'easeInOut', delay: 1 }}>
+        <circle cx="282" cy="178" r="16" fill="rgba(37,99,235,0.14)" stroke="rgba(96,165,250,0.42)" strokeWidth="1.2" />
+        <text x="282" y="184" textAnchor="middle" fill="#93c5fd" fontSize="12" fontWeight="700" fontFamily="serif">™</text>
+      </motion.g>
+
+      {/* Document / patent left */}
+      <motion.g animate={{ y: [4, -4, 4] }} transition={{ duration: 5.2, repeat: Infinity, ease: 'easeInOut', delay: 0.9 }}>
+        <rect x="8" y="155" width="36" height="48" rx="5" fill="rgba(37,99,235,0.14)" stroke="rgba(96,165,250,0.4)" strokeWidth="1.2" />
+        <rect x="14" y="167" width="24" height="3" rx="1.5" fill="rgba(255,255,255,0.28)" />
+        <rect x="14" y="174" width="24" height="3" rx="1.5" fill="rgba(255,255,255,0.2)" />
+        <rect x="14" y="181" width="16" height="3" rx="1.5" fill="rgba(255,255,255,0.18)" />
+        <rect x="14" y="188" width="20" height="3" rx="1.5" fill="rgba(255,255,255,0.14)" />
+      </motion.g>
+
+      {/* ── Check badge bottom ── */}
+      <motion.g
+        initial={{ scale: 0, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        transition={{ duration: 0.55, delay: 1.1, ease: 'backOut' }}
+      >
+        <circle cx="150" cy="366" r="24" fill="rgba(34,197,94,0.15)" stroke="rgba(34,197,94,0.48)" strokeWidth="1.5" />
+        <path d="M139 366 L147 374 L162 356" stroke="#22c55e" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+      </motion.g>
+
+      {/* ── Particles ── */}
+      <motion.circle cx="118" cy="50" r="3.5" fill="rgba(96,165,250,0.45)"
+        animate={{ y: [-14, 0, -14], opacity: [0.35, 0.85, 0.35] }}
+        transition={{ duration: 4.2, repeat: Infinity, ease: 'easeInOut', delay: 0.2 }} />
+      <motion.circle cx="188" cy="38" r="2.5" fill="rgba(167,139,250,0.4)"
+        animate={{ y: [-10, 4, -10], opacity: [0.3, 0.75, 0.3] }}
+        transition={{ duration: 3.8, repeat: Infinity, ease: 'easeInOut', delay: 1.1 }} />
+      <motion.circle cx="68" cy="310" r="3" fill="rgba(96,165,250,0.35)"
+        animate={{ y: [-7, 7, -7], opacity: [0.25, 0.65, 0.25] }}
+        transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut', delay: 0.7 }} />
+      <motion.circle cx="238" cy="320" r="2.5" fill="rgba(167,139,250,0.35)"
+        animate={{ y: [5, -5, 5], opacity: [0.25, 0.6, 0.25] }}
+        transition={{ duration: 4.5, repeat: Infinity, ease: 'easeInOut', delay: 1.6 }} />
+      <motion.circle cx="150" cy="342" r="3" fill="rgba(34,197,94,0.4)"
+        animate={{ scale: [1, 1.6, 1], opacity: [0.3, 0.7, 0.3] }}
+        transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut', delay: 0.5 }} />
+
+      <defs>
+        <linearGradient id="hGrad" x1="120" y1="86" x2="180" y2="148" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#60a5fa" />
+          <stop offset="100%" stopColor="#1d4ed8" />
+        </linearGradient>
+        <linearGradient id="bGrad" x1="99" y1="152" x2="201" y2="260" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#2563eb" />
+          <stop offset="100%" stopColor="#1e3a8a" />
+        </linearGradient>
+        <linearGradient id="aGradR" x1="196" y1="183" x2="248" y2="207" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#1d4ed8" />
+          <stop offset="100%" stopColor="#3b82f6" />
+        </linearGradient>
+        <linearGradient id="aGradL" x1="104" y1="183" x2="52" y2="207" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#1d4ed8" />
+          <stop offset="100%" stopColor="#3b82f6" />
+        </linearGradient>
+        <linearGradient id="lGrad" x1="0" y1="259" x2="0" y2="313" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#1d4ed8" />
+          <stop offset="100%" stopColor="#1e3a8a" />
+        </linearGradient>
+      </defs>
+    </svg>
   )
 }

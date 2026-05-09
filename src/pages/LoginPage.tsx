@@ -3,17 +3,25 @@ import { Link, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { signIn, resetPassword } from '../lib/auth'
 import { useAuth } from '../context/AuthContext'
+import { useLang } from '../context/LanguageContext'
 
-function translateError(msg: string): string {
-  if (msg.includes('Invalid login credentials')) return 'البريد الإلكتروني أو كلمة المرور غير صحيحة'
-  if (msg.includes('Email not confirmed')) return 'يرجى تأكيد بريدك الإلكتروني من صندوق الوارد أولاً'
-  if (msg.includes('Too many requests')) return 'محاولات كثيرة جداً، يرجى الانتظار قليلاً ثم المحاولة مجدداً'
-  return 'حدث خطأ، يرجى المحاولة مرة أخرى'
+function translateError(msg: string, t: (k: string) => string): string {
+  if (msg.includes('Invalid login credentials')) return t('login.title') === 'Sign In'
+    ? 'Invalid email or password'
+    : 'البريد الإلكتروني أو كلمة المرور غير صحيحة'
+  if (msg.includes('Email not confirmed')) return t('login.title') === 'Sign In'
+    ? 'Please confirm your email first'
+    : 'يرجى تأكيد بريدك الإلكتروني من صندوق الوارد أولاً'
+  if (msg.includes('Too many requests')) return t('login.title') === 'Sign In'
+    ? 'Too many attempts, please wait a moment'
+    : 'محاولات كثيرة جداً، يرجى الانتظار قليلاً ثم المحاولة مجدداً'
+  return t('error')
 }
 
 export default function LoginPage() {
   const navigate = useNavigate()
   const { user, loading } = useAuth()
+  const { t } = useLang()
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -33,15 +41,15 @@ export default function LoginPage() {
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
     setError('')
-    if (!email.trim()) { setError('يرجى إدخال البريد الإلكتروني'); return }
-    if (!password) { setError('يرجى إدخال كلمة المرور'); return }
+    if (!email.trim()) { setError(t('login.email')); return }
+    if (!password) { setError(t('login.password')); return }
 
     setSubmitting(true)
     try {
       await signIn(email.trim(), password)
       navigate('/', { replace: true })
     } catch (err) {
-      setError(translateError((err as Error).message))
+      setError(translateError((err as Error).message, t))
     } finally {
       setSubmitting(false)
     }
@@ -65,7 +73,7 @@ export default function LoginPage() {
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="9 18 3 12 9 6" /><line x1="3" y1="12" x2="21" y2="12" />
           </svg>
-          العودة للرئيسية
+          {t('auth.back')}
         </Link>
       </div>
 
@@ -75,7 +83,6 @@ export default function LoginPage() {
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: 0.5, ease: 'easeOut' as const }}
       >
-        {/* Logo */}
         <div className="auth-card-logo">
           <svg width="34" height="34" viewBox="0 0 44 44" fill="none">
             <path d="M22 5L38 12V26C38 35 22 42 22 42C22 42 6 35 6 26V12L22 5Z"
@@ -84,13 +91,13 @@ export default function LoginPage() {
               stroke="#2563eb" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
           <div>
-            <div className="auth-card-logo-name">إدارة الحقوق الملكية</div>
-            <div className="auth-card-logo-sub">والفكرية</div>
+            <div className="auth-card-logo-name">{t('auth.brand.name')}</div>
+            <div className="auth-card-logo-sub">{t('auth.brand.sub')}</div>
           </div>
         </div>
 
-        <h1 className="auth-title">تسجيل الدخول</h1>
-        <p className="auth-subtitle">أهلاً بعودتك، يرجى إدخال بيانات حسابك</p>
+        <h1 className="auth-title">{t('login.title')}</h1>
+        <p className="auth-subtitle">{t('login.subtitle')}</p>
 
         <form className="auth-form" onSubmit={handleSubmit} noValidate>
           {error && (
@@ -103,7 +110,7 @@ export default function LoginPage() {
           )}
 
           <div className="form-group">
-            <label className="form-label" htmlFor="email">البريد الإلكتروني</label>
+            <label className="form-label" htmlFor="email">{t('login.email')}</label>
             <input
               id="email"
               type="email"
@@ -117,7 +124,7 @@ export default function LoginPage() {
           </div>
 
           <div className="form-group">
-            <label className="form-label" htmlFor="password">كلمة المرور</label>
+            <label className="form-label" htmlFor="password">{t('login.password')}</label>
             <div className="input-password-wrap">
               <input
                 id="password"
@@ -133,7 +140,6 @@ export default function LoginPage() {
                 type="button"
                 className="input-pwd-toggle"
                 onClick={() => setShowPwd(v => !v)}
-                aria-label={showPwd ? 'إخفاء كلمة المرور' : 'إظهار كلمة المرور'}
               >
                 {showPwd ? (
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -150,28 +156,27 @@ export default function LoginPage() {
           </div>
 
           <button type="button" className="form-forgot" onClick={() => { setShowReset(true); setResetEmail(email); setResetDone(false); setResetError('') }}>
-            نسيت كلمة المرور؟
+            {t('login.forgot')}
           </button>
 
           <button type="submit" className="btn-auth" disabled={submitting}>
             {submitting ? (
-              <><span className="btn-spinner" />جارٍ الدخول...</>
-            ) : 'دخول'}
+              <><span className="btn-spinner" />{t('login.btn.loading')}</>
+            ) : t('login.btn')}
           </button>
         </form>
 
         <p className="auth-switch">
-          ليس لديك حساب؟{' '}
-          <Link to="/register" className="auth-switch-link">إنشاء حساب جديد</Link>
+          {t('login.no.account')}{' '}
+          <Link to="/register" className="auth-switch-link">{t('login.signup.link')}</Link>
         </p>
       </motion.div>
 
-      {/* نافذة نسيت كلمة المرور */}
       {showReset && (
         <div className="wsm-overlay" onClick={() => setShowReset(false)}>
           <div className="wsm-modal" onClick={e => e.stopPropagation()}>
             <div className="wsm-header">
-              <span className="wsm-title">استعادة كلمة المرور</span>
+              <span className="wsm-title">{t('reset.title')}</span>
               <button className="wsm-close" onClick={() => setShowReset(false)}>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                   <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
@@ -184,16 +189,14 @@ export default function LoginPage() {
                 <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2" strokeLinecap="round">
                   <circle cx="12" cy="12" r="10"/><polyline points="9 12 11 14 15 10"/>
                 </svg>
-                <p>تم إرسال رابط الاستعادة إلى بريدك الإلكتروني</p>
-                <p className="reset-sub">تحقق من صندوق الوارد أو Spam</p>
+                <p>{t('reset.done.msg')}</p>
+                <p className="reset-sub">{t('reset.done.sub')}</p>
               </div>
             ) : (
               <>
-                <p style={{ fontSize: 14, color: 'var(--c-gray-500)' }}>
-                  أدخلي بريدك الإلكتروني وسنرسل لك رابط لإعادة تعيين كلمة المرور
-                </p>
+                <p style={{ fontSize: 14, color: 'var(--c-gray-500)' }}>{t('reset.desc')}</p>
                 <div className="form-group" style={{ margin: 0 }}>
-                  <label className="form-label">البريد الإلكتروني</label>
+                  <label className="form-label">{t('reset.email') || t('login.email')}</label>
                   <input
                     type="email"
                     className="form-input"
@@ -213,14 +216,14 @@ export default function LoginPage() {
                     try {
                       await resetPassword(resetEmail.trim())
                       setResetDone(true)
-                    } catch {
-                      setResetError('حدث خطأ، تأكدي من البريد الإلكتروني وحاولي مجدداً')
+                    } catch (err) {
+                      setResetError((err as Error).message || t('reset.err'))
                     } finally {
                       setResetSending(false)
                     }
                   }}
                 >
-                  {resetSending ? <><span className="btn-spinner" />جاري الإرسال...</> : 'إرسال رابط الاستعادة'}
+                  {resetSending ? <><span className="btn-spinner" />{t('reset.btn.loading')}</> : t('reset.btn')}
                 </button>
               </>
             )}

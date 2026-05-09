@@ -7,12 +7,40 @@ import { signOut } from '../lib/auth'
 import { getUserNotifications, markNotificationsRead, type Notification } from '../lib/supabase-ipr'
 import SettingsModal, { type SettingsSection } from './SettingsModal'
 
+function EagleLogo() {
+  const [src, setSrc] = useState('/eagle.png')
+
+  useEffect(() => {
+    const img = new Image()
+    img.onload = () => {
+      const canvas = document.createElement('canvas')
+      canvas.width = img.width
+      canvas.height = img.height
+      const ctx = canvas.getContext('2d')!
+      ctx.drawImage(img, 0, 0)
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
+      const d = imageData.data
+      for (let i = 0; i < d.length; i += 4) {
+        const r = d[i], g = d[i + 1], b = d[i + 2]
+        // Background is dark teal: very low R, moderate G and B
+        if (r < 80 && g > 40 && (g + b) > r * 2.5) d[i + 3] = 0
+      }
+      ctx.putImageData(imageData, 0, 0)
+      setSrc(canvas.toDataURL('image/png'))
+    }
+    img.src = '/eagle.png'
+  }, [])
+
+  return <img src={src} alt="logo" className="navbar-logo-icon" style={{ width: 68, height: 68, objectFit: 'contain' }} />
+}
+
 const ANCHOR_LINKS = [
   { href: '#services', tkKey: 'nav.services' },
   { href: '#how',      tkKey: 'nav.how' },
 ]
 
 const PAGE_LINKS = [
+  { to: '/registry',       tkKey: 'nav.registry' },
   { to: '/register-right', tkKey: 'nav.register' },
   { to: '/verify',         tkKey: 'nav.verify' },
   { to: '/certificates',   tkKey: 'nav.certificates' },
@@ -94,20 +122,7 @@ export default function Navbar() {
         <div className="container navbar-inner">
           {/* Logo */}
           <Link to="/" className="navbar-logo" data-no-sound>
-            <svg width="40" height="40" viewBox="0 0 40 40" fill="none" className="navbar-logo-icon" aria-hidden="true">
-              <defs>
-                <linearGradient id="nl" x1="4" y1="2" x2="36" y2="38" gradientUnits="userSpaceOnUse">
-                  <stop offset="0%" stopColor="#a78bfa"/>
-                  <stop offset="100%" stopColor="#2563eb"/>
-                </linearGradient>
-              </defs>
-              <path d="M20 2.5L36 9V21C36 30.5 20 38 20 38C20 38 4 30.5 4 21V9L20 2.5Z"
-                fill="rgba(99,102,241,0.15)" stroke="url(#nl)" strokeWidth="1.5" strokeLinejoin="round"/>
-              <path d="M20 10L26.5 18.5L20 30L13.5 18.5Z"
-                fill="rgba(99,102,241,0.12)" stroke="url(#nl)" strokeWidth="1.4" strokeLinejoin="round"/>
-              <line x1="20" y1="18.5" x2="20" y2="30" stroke="url(#nl)" strokeWidth="1" strokeLinecap="round"/>
-              <line x1="13.5" y1="18.5" x2="26.5" y2="18.5" stroke="url(#nl)" strokeWidth="1.2" strokeLinecap="round"/>
-            </svg>
+            <EagleLogo />
             <span className="navbar-logo-name">
               {lang === 'ar' ? 'إدارة الحقوق الملكية والفكرية' : 'Intellectual Property Management'}
             </span>

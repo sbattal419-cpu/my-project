@@ -61,3 +61,13 @@ export async function resetPassword(email: string) {
   })
   if (error) throw error
 }
+
+export async function updateEmail(newEmail: string) {
+  const { error } = await supabase.auth.updateUser({ email: newEmail })
+  if (error) throw error
+}
+
+export async function updatePhone(phone: string) {
+  const { error } = await supabase.auth.updateUser({ data: { phone_number: phone } })
+  if (error) throw error
+}

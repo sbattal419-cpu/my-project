@@ -4,6 +4,7 @@ import ServicesSection from '../components/ServicesSection'
 import StatisticsSection from '../components/StatisticsSection'
 import HowItWorksSection from '../components/HowItWorksSection'
 import CTASection from '../components/CTASection'
+import RatingSection from '../components/RatingSection'
 import Footer from '../components/Footer'
 
 export default function HomePage() {
@@ -15,6 +16,7 @@ export default function HomePage() {
       <StatisticsSection />
       <HowItWorksSection />
       <CTASection />
+      <RatingSection />
       <Footer />
     </>
   )

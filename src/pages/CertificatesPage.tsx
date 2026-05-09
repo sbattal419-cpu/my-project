@@ -5,6 +5,7 @@ import { useWallet } from '../hooks/useWallet'
 import { fetchOwnerCertificates, transferCertOnChain } from '../lib/blockchain'
 import { getUserCerts, type RightsRow } from '../lib/supabase-ipr'
 import { useAuth } from '../context/AuthContext'
+import { useLang } from '../context/LanguageContext'
 import { IP_TYPES, BLOCKCHAIN } from '../config/blockchain.config'
 import type { CertificateData } from '../lib/blockchain'
 import WalletConnect from '../components/WalletConnect'
@@ -12,6 +13,7 @@ import WalletConnect from '../components/WalletConnect'
 const EASE = 'easeOut' as const
 
 function CertCard({ cert, onTransfer }: { cert: CertificateData; onTransfer: () => void }) {
+  const { t, lang } = useLang()
   const ipType = IP_TYPES[cert.ipType] ?? IP_TYPES[0]
   return (
     <motion.div
@@ -22,7 +24,7 @@ function CertCard({ cert, onTransfer }: { cert: CertificateData; onTransfer: () 
     >
       <div className="cert-card-top">
         <span className="ip-badge" style={{ background: ipType.bg, color: ipType.color }}>
-          {ipType.label}
+          {t(ipType.labelKey)}
         </span>
         <span className="cert-card-id">#{cert.certId}</span>
       </div>
@@ -32,17 +34,38 @@ function CertCard({ cert, onTransfer }: { cert: CertificateData; onTransfer: () 
 
       <div className="cert-card-meta">
         <span className="cert-card-date">
-          {cert.registeredAt.toLocaleDateString('ar-EG', { year: 'numeric', month: 'short', day: 'numeric' })}
+          {cert.registeredAt.toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
         </span>
         <span className={`cert-card-status${cert.isValid ? ' cert-valid' : ' cert-invalid'}`}>
-          {cert.isValid ? '● صالحة' : '● ملغاة'}
+          {cert.isValid ? t('my.valid') : t('my.revoked')}
         </span>
       </div>
 
       <div className="cert-card-hash">
-        <span className="cert-card-hash-label">هاش الوثيقة</span>
+        <span className="cert-card-hash-label">{t('my.doc.hash')}</span>
         <span className="cert-card-hash-val">{cert.documentHash.slice(0, 14)}...{cert.documentHash.slice(-8)}</span>
       </div>
+
+      {cert.isValid && (
+        <div className="cert-stamp" aria-hidden="true">
+          <svg width="100" height="100" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <path id="top-arc" d="M 12,50 A 38,38 0 0,1 88,50" />
+              <path id="bot-arc" d="M 18,58 A 38,38 0 0,0 82,58" />
+            </defs>
+            <circle cx="50" cy="50" r="46" fill="none" stroke="#2563eb" strokeWidth="2.5" />
+            <circle cx="50" cy="50" r="38" fill="none" stroke="#2563eb" strokeWidth="1.2" strokeDasharray="3.5 2.5" />
+            <text fontSize="9.5" fill="#2563eb" fontWeight="700" fontFamily="Arial, sans-serif" letterSpacing="1.5">
+              <textPath href="#top-arc" startOffset="50%" textAnchor="middle">معتمد رسمياً</textPath>
+            </text>
+            <text fontSize="8.5" fill="#2563eb" fontWeight="600" fontFamily="Arial, sans-serif" letterSpacing="1">
+              <textPath href="#bot-arc" startOffset="50%" textAnchor="middle">ملكية فكرية</textPath>
+            </text>
+            <path d="M50 24L62 30V42C62 51 50 57 50 57C50 57 38 51 38 42V30Z" fill="rgba(37,99,235,0.12)" stroke="#2563eb" strokeWidth="1.8" strokeLinejoin="round" />
+            <path d="M44 41L48 45L57 35" stroke="#2563eb" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+          </svg>
+        </div>
+      )}
 
       <div className="cert-card-actions">
         <a
@@ -62,7 +85,7 @@ function CertCard({ cert, onTransfer }: { cert: CertificateData; onTransfer: () 
               <polyline points="17 1 21 5 17 9" /><path d="M3 11V9a4 4 0 0 1 4-4h14" />
               <polyline points="7 23 3 19 7 15" /><path d="M21 13v2a4 4 0 0 1-4 4H3" />
             </svg>
-            تحويل الملكية
+            {t('my.transfer.btn')}
           </button>
         )}
       </div>
@@ -73,6 +96,7 @@ function CertCard({ cert, onTransfer }: { cert: CertificateData; onTransfer: () 
 export default function CertificatesPage() {
   const wallet  = useWallet()
   const { user } = useAuth()
+  const { t } = useLang()
   const [certs, setCerts] = useState<CertificateData[]>([])
   const [source, setSource] = useState<'supabase' | 'blockchain'>('blockchain')
   const [loading, setLoading] = useState(false)
@@ -89,7 +113,6 @@ export default function CertificatesPage() {
     setLoading(true)
     setLoadError(null)
     try {
-      // إذا كان المستخدم مسجلاً → Supabase (سريع وشامل لكل المحافظ)
       if (user) {
         const rows = await getUserCerts(user.id)
         setSource('supabase')
@@ -105,17 +128,16 @@ export default function CertificatesPage() {
           isValid:      true,
         })))
       } else if (wallet.address) {
-        // غير مسجل → بلوكتشين مباشرة
         setSource('blockchain')
         const data = await fetchOwnerCertificates(wallet.address)
         setCerts(data)
       }
     } catch (err) {
-      setLoadError((err as Error).message || 'فشل تحميل الشهادات')
+      setLoadError((err as Error).message || t('my.err.load'))
     } finally {
       setLoading(false)
     }
-  }, [user, wallet.address])
+  }, [user, wallet.address, t])
 
   useEffect(() => {
     if (user || (isReady && wallet.address)) {
@@ -140,9 +162,9 @@ export default function CertificatesPage() {
     } catch (err) {
       const msg = (err as Error).message ?? ''
       if (msg.toLowerCase().includes('user rejected') || msg.toLowerCase().includes('rejected')) {
-        setTransferError('تم رفض المعاملة من المحفظة')
+        setTransferError(t('my.err.rejected'))
       } else {
-        setTransferError('فشل التحويل. تأكد من صحة العنوان وتوفر ETH تجريبي.')
+        setTransferError(t('my.err.failed'))
       }
     } finally {
       setTransferring(false)
@@ -164,7 +186,7 @@ export default function CertificatesPage() {
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="m9 18 6-6-6-6" />
           </svg>
-          الرئيسية
+          {t('pg.back')}
         </Link>
 
         <div className="bc-topbar-logo">
@@ -173,7 +195,7 @@ export default function CertificatesPage() {
               fill="rgba(37,99,235,0.18)" stroke="#3b82f6" strokeWidth="1.5" strokeLinejoin="round" />
             <path d="M14 22L19.5 28.5L30 16" stroke="#60a5fa" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
-          <span>إدارة الحقوق الملكية</span>
+          <span>{t('pg.brand')}</span>
         </div>
 
         <WalletConnect showDisconnect={false} />
@@ -186,8 +208,8 @@ export default function CertificatesPage() {
               <rect x="2" y="3" width="20" height="14" rx="2" ry="2" /><line x1="8" y1="21" x2="16" y2="21" /><line x1="12" y1="17" x2="12" y2="21" />
             </svg>
           </div>
-          <h1 className="bc-page-title">شهاداتي الرقمية</h1>
-          <p className="bc-page-desc">شهاداتك الفكرية المسجلة على بلوكتشين Sepolia</p>
+          <h1 className="bc-page-title">{t('my.page.title')}</h1>
+          <p className="bc-page-desc">{t('my.page.desc')}</p>
         </div>
 
         {!isReady ? (
@@ -197,14 +219,14 @@ export default function CertificatesPage() {
                 <rect x="2" y="7" width="20" height="14" rx="2" ry="2" /><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
               </svg>
             </div>
-            <h2 className="bc-wpc-title">ربط المحفظة مطلوب</h2>
-            <p className="bc-wpc-desc">اربط محفظتك على شبكة Sepolia لعرض شهاداتك الرقمية</p>
+            <h2 className="bc-wpc-title">{t('my.wallet.req')}</h2>
+            <p className="bc-wpc-desc">{t('my.wallet.desc')}</p>
             <WalletConnect />
           </div>
         ) : loading ? (
           <div className="bc-loading-state">
             <div className="bc-spinner" />
-            <p>جاري تحميل الشهادات من البلوكتشين...</p>
+            <p>{t('my.loading')}</p>
           </div>
         ) : loadError ? (
           <div className="bc-alert bc-alert-error">{loadError}</div>
@@ -215,17 +237,17 @@ export default function CertificatesPage() {
                 <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" /><polyline points="13 2 13 9 20 9" />
               </svg>
             </div>
-            <h2 className="bc-empty-title">لا توجد شهادات بعد</h2>
-            <p className="bc-empty-desc">لم تقم بتسجيل أي حقوق فكرية من هذه المحفظة حتى الآن</p>
+            <h2 className="bc-empty-title">{t('my.empty.title')}</h2>
+            <p className="bc-empty-desc">{t('my.empty.desc')}</p>
             <Link to="/register-right" className="btn-bc-primary">
-              تسجيل حق جديد
+              {t('vfy.link.reg')}
             </Link>
           </div>
         ) : (
           <>
             <div className="bc-certs-header">
-              <span className="bc-certs-count">{certs.length} شهادة مسجلة</span>
-              <span className="bc-source-badge" title={source === 'supabase' ? 'محمّلة من قاعدة البيانات' : 'محمّلة من البلوكتشين'}>
+              <span className="bc-certs-count">{certs.length} {t('my.cert.registered')}</span>
+              <span className="bc-source-badge" title={source === 'supabase' ? 'Supabase' : 'Blockchain'}>
                 {source === 'supabase' ? '⚡ Supabase' : '⛓ Blockchain'}
               </span>
               <button className="btn-bc-outline btn-bc-sm" onClick={loadCerts} disabled={loading}>
@@ -233,7 +255,7 @@ export default function CertificatesPage() {
                   <polyline points="23 4 23 10 17 10" /><polyline points="1 20 1 14 7 14" />
                   <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
                 </svg>
-                تحديث
+                {t('my.refresh')}
               </button>
             </div>
             <div className="bc-certs-grid">
@@ -274,12 +296,12 @@ export default function CertificatesPage() {
                       <polyline points="20 6 9 17 4 12" />
                     </svg>
                   </div>
-                  <p>تم تحويل الشهادة بنجاح!</p>
+                  <p>{t('my.success.transfer')}</p>
                 </div>
               ) : (
                 <>
                   <div className="bc-modal-header">
-                    <h2 className="bc-modal-title">تحويل ملكية الشهادة #{transferCertId}</h2>
+                    <h2 className="bc-modal-title">{t('my.modal.title')} #{transferCertId}</h2>
                     <button className="bc-modal-close" onClick={closeModal}>
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                         <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
@@ -287,12 +309,10 @@ export default function CertificatesPage() {
                     </button>
                   </div>
 
-                  <p className="bc-modal-desc">
-                    أدخل عنوان المحفظة الجديد لتحويل ملكية هذه الشهادة. هذا الإجراء لا يمكن التراجع عنه.
-                  </p>
+                  <p className="bc-modal-desc">{t('my.modal.desc')}</p>
 
                   <div className="bc-form-group">
-                    <label className="bc-label">عنوان المحفظة المستقبِلة</label>
+                    <label className="bc-label">{t('my.wallet.recipient')}</label>
                     <input
                       className="bc-input bc-mono"
                       placeholder="0x..."
@@ -310,12 +330,12 @@ export default function CertificatesPage() {
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" />
                     </svg>
-                    بعد التحويل لن تظهر هذه الشهادة في قائمتك
+                    {t('my.modal.warn')}
                   </div>
 
                   <div className="bc-modal-actions">
                     <button className="btn-bc-ghost" onClick={closeModal} disabled={transferring}>
-                      إلغاء
+                      {t('cancel')}
                     </button>
                     <button
                       className="btn-bc-primary"
@@ -323,8 +343,8 @@ export default function CertificatesPage() {
                       disabled={!toAddress.trim() || transferring}
                     >
                       {transferring
-                        ? <><span className="btn-spinner" /> جاري التحويل...</>
-                        : 'تأكيد التحويل'}
+                        ? <><span className="btn-spinner" /> {t('my.transferring')}</>
+                        : t('my.confirm.transfer')}
                     </button>
                   </div>
                 </>

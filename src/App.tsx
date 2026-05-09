@@ -10,6 +10,8 @@ import RegisterRightPage from './pages/RegisterRightPage'
 import VerifyPage from './pages/VerifyPage'
 import CertificatesPage from './pages/CertificatesPage'
 import AdminDashboard from './pages/AdminDashboard'
+import ResetPasswordPage from './pages/ResetPasswordPage'
+import PublicRegistryPage from './pages/PublicRegistryPage'
 import PrivacyPage from './pages/PrivacyPage'
 import TermsPage from './pages/TermsPage'
 import AccessibilityPage from './pages/AccessibilityPage'
@@ -59,9 +61,11 @@ export default function App() {
           <Route path="/verify" element={<VerifyPage />} />
           <Route path="/certificates" element={<CertificatesPage />} />
           <Route path="/admin" element={<AdminDashboard />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/privacy" element={<PrivacyPage />} />
           <Route path="/terms" element={<TermsPage />} />
           <Route path="/accessibility" element={<AccessibilityPage />} />
+          <Route path="/registry" element={<PublicRegistryPage />} />
         </Routes>
       </AuthProvider>
       </LanguageProvider>

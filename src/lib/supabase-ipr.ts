@@ -130,3 +130,42 @@ export async function getUserCerts(userId: string): Promise<RightsRow[]> {
   if (error) throw error
   return (data ?? []) as RightsRow[]
 }
+
+// ─── السجل العام (كل الحقوق) ──────────────────────────────────────────────────
+export async function getAllRights(): Promise<RightsRow[]> {
+  const { data, error } = await supabase
+    .from('Rights')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(100)
+  if (error) throw error
+  return (data ?? []) as RightsRow[]
+}
+
+// ─── تقييمات الموقع ───────────────────────────────────────────────────────────
+export interface RatingStats { avg: number; count: number }
+
+export async function getRatingStats(): Promise<RatingStats> {
+  const { data, error } = await supabase.from('site_ratings').select('stars')
+  if (error) throw error
+  const rows = (data ?? []) as { stars: number }[]
+  if (!rows.length) return { avg: 0, count: 0 }
+  const avg = rows.reduce((s, r) => s + r.stars, 0) / rows.length
+  return { avg: Math.round(avg * 10) / 10, count: rows.length }
+}
+
+export async function getUserRating(userId: string): Promise<number | null> {
+  const { data } = await supabase
+    .from('site_ratings')
+    .select('stars')
+    .eq('auth_user_id', userId)
+    .single()
+  return (data as { stars: number } | null)?.stars ?? null
+}
+
+export async function submitRating(userId: string, stars: number): Promise<void> {
+  const { error } = await supabase
+    .from('site_ratings')
+    .upsert({ auth_user_id: userId, stars }, { onConflict: 'auth_user_id' })
+  if (error) throw error
+}

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, type ChangeEvent } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '../context/AuthContext'
 import { useLang } from '../context/LanguageContext'
-import { updateProfile, updatePassword, uploadAvatar } from '../lib/auth'
+import { updateProfile, updatePassword, uploadAvatar, updateEmail, updatePhone } from '../lib/auth'
 import { getUserCerts, type RightsRow } from '../lib/supabase-ipr'
 import { transferCertOnChain } from '../lib/blockchain'
 import { supabase } from '../lib/supabase'
@@ -21,11 +21,25 @@ function ProfileSection() {
   const { user } = useAuth()
   const { t } = useLang()
   const avatarUrl = user?.user_metadata?.avatar_url as string | undefined
+
   const [name, setName] = useState((user?.user_metadata?.full_name as string) ?? '')
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [err, setErr] = useState('')
   const [uploading, setUploading] = useState(false)
+
+  // Email change
+  const [showEmailEdit, setShowEmailEdit] = useState(false)
+  const [newEmail, setNewEmail] = useState('')
+  const [emailSending, setEmailSending] = useState(false)
+  const [emailSent, setEmailSent] = useState(false)
+  const [emailErr, setEmailErr] = useState('')
+
+  // Phone
+  const [phone, setPhone] = useState((user?.user_metadata?.phone_number as string) ?? '')
+  const [phoneSaving, setPhoneSaving] = useState(false)
+  const [phoneSaved, setPhoneSaved] = useState(false)
+  const [phoneErr, setPhoneErr] = useState('')
 
   const handleSave = async () => {
     if (!name.trim()) return
@@ -45,6 +59,26 @@ function ProfileSection() {
     try { await uploadAvatar(file, user.id) }
     catch { setErr(t('error')) }
     finally { setUploading(false); e.target.value = '' }
+  }
+
+  const handleEmailChange = async () => {
+    if (!newEmail.trim()) return
+    setEmailSending(true); setEmailErr('')
+    try {
+      await updateEmail(newEmail.trim())
+      setEmailSent(true)
+    } catch (e) { setEmailErr((e as Error).message || t('error')) }
+    finally { setEmailSending(false) }
+  }
+
+  const handleSavePhone = async () => {
+    setPhoneSaving(true); setPhoneErr('')
+    try {
+      await updatePhone(phone.trim())
+      setPhoneSaved(true)
+      setTimeout(() => setPhoneSaved(false), 2500)
+    } catch (e) { setPhoneErr((e as Error).message || t('error')) }
+    finally { setPhoneSaving(false) }
   }
 
   return (
@@ -67,14 +101,74 @@ function ProfileSection() {
         </label>
       </div>
 
+      {/* Name */}
       <div className="set-field">
         <label className="set-label">{t('pro.name')}</label>
         <input className="set-input" value={name} onChange={e => setName(e.target.value)} />
       </div>
 
+      {/* Email */}
       <div className="set-field">
-        <label className="set-label">{t('pro.email')}</label>
+        <div className="set-label-row">
+          <label className="set-label">{t('pro.email')}</label>
+          {!showEmailEdit && !emailSent && (
+            <button className="set-link-btn" onClick={() => { setShowEmailEdit(true); setEmailErr('') }}>
+              {t('pro.email.change')}
+            </button>
+          )}
+        </div>
         <input className="set-input set-input-readonly" value={user?.email ?? ''} readOnly />
+        {showEmailEdit && !emailSent && (
+          <div className="set-email-edit">
+            <input
+              className="set-input"
+              type="email"
+              placeholder={t('pro.email.new')}
+              value={newEmail}
+              onChange={e => setNewEmail(e.target.value)}
+              dir="ltr"
+            />
+            {emailErr && <p className="set-error">{emailErr}</p>}
+            <div className="set-email-actions">
+              <button className="set-btn-sm set-btn-ghost" onClick={() => { setShowEmailEdit(false); setNewEmail(''); setEmailErr('') }}>
+                {t('pro.email.cancel')}
+              </button>
+              <button className="set-btn-sm set-btn-primary" onClick={handleEmailChange} disabled={emailSending || !newEmail.trim()}>
+                {emailSending ? <><span className="btn-spinner" style={{ width: 12, height: 12, borderWidth: 2 }} /></> : t('pro.email.send')}
+              </button>
+            </div>
+          </div>
+        )}
+        {emailSent && (
+          <p className="set-success" style={{ fontSize: 12, marginTop: 6 }}>
+            ✅ {t('pro.email.sent')}
+          </p>
+        )}
+      </div>
+
+      {/* Phone */}
+      <div className="set-field">
+        <label className="set-label">{t('pro.phone')}</label>
+        <div className="set-phone-row">
+          <input
+            className="set-input"
+            type="tel"
+            placeholder={t('pro.phone.placeholder')}
+            value={phone}
+            onChange={e => setPhone(e.target.value)}
+            dir="ltr"
+          />
+          <button
+            className="set-btn-sm set-btn-primary"
+            onClick={handleSavePhone}
+            disabled={phoneSaving || !phone.trim()}
+          >
+            {phoneSaving
+              ? <span className="btn-spinner" style={{ width: 12, height: 12, borderWidth: 2 }} />
+              : phoneSaved ? '✓' : t('pro.save')}
+          </button>
+        </div>
+        {phoneErr && <p className="set-error">{phoneErr}</p>}
       </div>
 
       {err && <p className="set-error">{err}</p>}
