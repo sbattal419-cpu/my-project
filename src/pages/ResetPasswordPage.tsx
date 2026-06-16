@@ -58,8 +58,8 @@ export default function ResetPasswordPage() {
               stroke="#2563eb" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
           <div>
-            <div className="auth-card-logo-name">إدارة الحقوق الملكية</div>
-            <div className="auth-card-logo-sub">والفكرية</div>
+            <div className="auth-card-logo-name">إدارة حقوق الملكية</div>
+            <div className="auth-card-logo-sub">الفكرية</div>
           </div>
         </div>
 

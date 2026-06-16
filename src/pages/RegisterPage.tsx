@@ -160,7 +160,7 @@ export default function RegisterPage() {
                   id="name"
                   type="text"
                   className="form-input"
-                  placeholder={lang === 'en' ? 'John Smith' : 'أحمد محمد العلي'}
+                  placeholder={lang === 'en' ? 'John Smith' :'الاسم الثلاثي باللغة العربية' }
                   value={name}
                   onChange={e => setName(e.target.value)}
                   autoComplete="name"
@@ -173,7 +173,7 @@ export default function RegisterPage() {
                   id="reg-email"
                   type="email"
                   className="form-input"
-                  placeholder="example@domain.com"
+                  placeholder="example@gmail.com"
                   value={email}
                   onChange={e => setEmail(e.target.value)}
                   autoComplete="email"

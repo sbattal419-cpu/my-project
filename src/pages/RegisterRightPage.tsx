@@ -209,7 +209,7 @@ export default function RegisterRightPage() {
             {[
               { num: '+10K', label: 'حق مسجّل موثّق' },
               { num: '100%', label: 'أمان بلوكشين' },
-              { num: '< 2د', label: 'وقت التسجيل' },
+              { num: '< 5د', label: 'وقت التسجيل' },
             ].map((s, i) => (
               <motion.div
                 key={i}

@@ -124,7 +124,7 @@ export default function Navbar() {
           <Link to="/" className="navbar-logo" data-no-sound>
             <EagleLogo />
             <span className="navbar-logo-name">
-              {lang === 'ar' ? 'إدارة الحقوق الملكية والفكرية' : 'Intellectual Property Management'}
+              {lang === 'ar' ? 'إدارة حقوق الملكية الفكرية' : 'Intellectual Property Management'}
             </span>
           </Link>
 

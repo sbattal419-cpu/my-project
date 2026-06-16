@@ -28,7 +28,7 @@ interface UserRow {
   created_at: string
 }
 
-const IP_LABELS = ['حق مؤلف', 'علامة تجارية', 'براءة اختراع', 'استشارة']
+const IP_LABELS = ['حق مؤلف', 'علامة تجارية', 'براءة اختراع']
 const IP_COLORS = ['#2563eb', '#7c3aed', '#059669', '#d97706']
 const IP_BG    = ['#eff6ff', '#f5f3ff', '#ecfdf5', '#fffbeb']
 

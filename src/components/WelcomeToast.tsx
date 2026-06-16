@@ -36,7 +36,7 @@ export default function WelcomeToast({ name, onDismiss }: Props) {
       </div>
       <div className="welcome-toast-content">
         <p className="welcome-toast-title">مرحباً {name}!</p>
-        <p className="welcome-toast-sub">سعيدون بعودتك إلى منصة إدارة الحقوق الفكرية</p>
+        <p className="welcome-toast-sub">سعيدون بعودتك إلى منصة إدارة حقوق الملكية الفكرية</p>
       </div>
       <button className="welcome-toast-close" onClick={onDismiss} aria-label="إغلاق">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">

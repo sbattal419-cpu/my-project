@@ -32,7 +32,7 @@ const T: Record<string, Record<Lang, string>> = {
 
   // Why our platform
   'why.badge':    { ar: 'لماذا منصتنا؟',                                                                             en: 'Why Our Platform?' },
-  'why.title':    { ar: 'المزايا التي تميّزنا',                                                                       en: 'What Sets Us Apart' },
+  'why.title':    { ar: '                      ',                                                                       en: 'What Sets Us Apart' },
   'why.subtitle': { ar: 'نوفر لك أحدث التقنيات والأدوات لحماية حقوقك الفكرية والملكية بكل سهولة وموثوقية',           en: 'We provide the latest technologies and tools to protect your intellectual property rights with ease and reliability' },
   'why.1.title':  { ar: 'تسجيل سريع وآمن',    en: 'Fast & Secure Registration' },
   'why.1.desc':   { ar: 'سجّل حقوقك بخطوات بسيطة تضمن أمان بياناتك وموثوقية معلوماتك',                             en: 'Register your rights with simple steps that guarantee data security and information reliability' },
@@ -57,7 +57,6 @@ const T: Record<string, Record<Lang, string>> = {
   'svc.2.desc':   { ar: 'تأمين هوية علامتك التجارية وتمييزها قانونياً في الأسواق المحلية والدولية.', en: 'Secure your brand identity and legally distinguish it in local and international markets.' },
   'svc.3.title':  { ar: 'تسجيل براءات الاختراع',    en: 'Patent Registration' },
   'svc.3.desc':   { ar: 'حماية اختراعاتك وابتكاراتك التقنية وضمان حقوق الاستغلال الحصري لمدة قانونية.', en: 'Protect your inventions and technical innovations and ensure exclusive exploitation rights for a legal period.' },
-  'svc.4.title':  { ar: 'الاستشارات القانونية',      en: 'Legal Consultations' },
   'svc.4.desc':   { ar: 'خبراء قانونيون متخصصون في الملكية الفكرية يقدمون المشورة والدعم اللازمين لحماية حقوقك.', en: 'Specialized legal experts in intellectual property providing the advice and support needed to protect your rights.' },
 
   // How it works
@@ -99,7 +98,7 @@ const T: Record<string, Record<Lang, string>> = {
   'footer.register.link': { ar: 'تسجيل الحقوق',    en: 'Register Rights' },
   'footer.search.link':   { ar: 'البحث في الحقوق', en: 'Search Rights' },
   'footer.mycerts.link':  { ar: 'شهاداتي الرقمية', en: 'My Digital Certificates' },
-  'footer.copy':          { ar: 'إدارة الحقوق الملكية والفكرية. جميع الحقوق محفوظة.', en: 'Intellectual Property Rights Management. All rights reserved.' },
+  'footer.copy':          { ar: 'إدارة حقوق الملكية الفكرية. جميع الحقوق محفوظة.', en: 'Intellectual Property Rights Management. All rights reserved.' },
   'footer.privacy':       { ar: 'سياسة الخصوصية',  en: 'Privacy Policy' },
   'footer.terms':         { ar: 'الشروط والأحكام',  en: 'Terms & Conditions' },
   'footer.accessibility': { ar: 'إمكانية الوصول',  en: 'Accessibility' },
@@ -107,8 +106,8 @@ const T: Record<string, Record<Lang, string>> = {
 
   // Auth shared
   'auth.back':         { ar: 'العودة للرئيسية',   en: 'Back to Home' },
-  'auth.brand.name':   { ar: 'إدارة الحقوق الملكية', en: 'Intellectual Property' },
-  'auth.brand.sub':    { ar: 'والفكرية',           en: 'Rights Management' },
+  'auth.brand.name':   { ar: 'إدارة حقوق الملكية', en: 'Intellectual Property' },
+  'auth.brand.sub':    { ar: 'الفكرية',           en: 'Rights Management' },
 
   // Login page
   'login.title':       { ar: 'تسجيل الدخول',      en: 'Sign In' },
@@ -170,11 +169,10 @@ const T: Record<string, Record<Lang, string>> = {
   'ipt.0': { ar: 'حقوق النشر',        en: 'Copyright' },
   'ipt.1': { ar: 'العلامات التجارية', en: 'Trademark' },
   'ipt.2': { ar: 'براءات الاختراع',   en: 'Patent' },
-  'ipt.3': { ar: 'استشارة قانونية',   en: 'Legal Consultation' },
 
   // Shared page chrome
   'pg.back':  { ar: 'الرئيسية',             en: 'Home' },
-  'pg.brand': { ar: 'إدارة الحقوق الملكية', en: 'IP Rights Management' },
+  'pg.brand': { ar: 'إدارة حقوق الملكيةالفكرية', en: 'IP Rights Management' },
 
   // VerifyPage
   'vfy.page.title':  { ar: 'التحقق من الحقوق',                               en: 'Verify Rights' },
