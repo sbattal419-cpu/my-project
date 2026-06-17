@@ -205,42 +205,57 @@ export default function Navbar() {
 
                 <AnimatePresence>
                   {profileOpen && (
-                    <motion.div className="profile-dropdown"
+                    <motion.div className="profile-dropdown profile-dropdown-wide"
                       initial={{ opacity: 0, y: -8, scale: 0.97 }}
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       exit={{ opacity: 0, y: -8, scale: 0.97 }}
                       transition={{ duration: 0.15 }}>
 
-                      {/* Header */}
-                      <div className="profile-dd-header">
-                        <div className="profile-dd-avatar-wrap">
+                      {/* ── Profile hero ── */}
+                      <div className="pdd-hero">
+                        <div className="pdd-avatar-ring"
+                          onClick={() => { setProfileOpen(false); setAccountOpen(true) }}
+                          title="تغيير الصورة">
                           {avatarUrl
-                            ? <img src={avatarUrl} alt="" className="profile-dd-avatar-img" />
-                            : <span className="profile-dd-initials">{initials}</span>}
+                            ? <img src={avatarUrl} alt="" className="pdd-avatar-img" />
+                            : <span className="pdd-avatar-initials">{initials}</span>}
+                          <div className="pdd-avatar-edit">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                          </div>
                         </div>
-                        <span className="profile-dd-email">{user.email}</span>
+                        <div className="pdd-user-info">
+                          <span className="pdd-user-name">
+                            {(user.user_metadata?.full_name as string) || lang === 'ar' ? 'المستخدم' : 'User'}
+                          </span>
+                          <span className="pdd-user-email">{user.email}</span>
+                        </div>
                       </div>
 
                       <div className="profile-dd-divider" />
 
-                      {/* Settings items */}
-                      <button className="profile-dd-item" onClick={() => { setProfileOpen(false); setAccountOpen(true) }}>
-                        <span style={{ fontSize: 14 }}>👤</span>
-                        {t('set.profile')}
-                      </button>
-                      {([
-                        { icon: '🌐', key: 'language', label: t('set.language') },
-                        { icon: '↗️', key: 'transfer', label: t('set.transfer') },
-                      ] as { icon: string; key: SettingsSection; label: string }[]).map(item => (
-                        <button key={item.key} className="profile-dd-item" onClick={() => openSettings(item.key)}>
-                          <span style={{ fontSize: 14 }}>{item.icon}</span>
-                          {item.label}
+                      {/* ── Quick actions ── */}
+                      <div className="pdd-actions">
+                        <button className="pdd-action-btn" onClick={() => { setProfileOpen(false); setAccountOpen(true) }}>
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                          تعديل الحساب
                         </button>
-                      ))}
+                        <button className="pdd-action-btn" onClick={() => { setProfileOpen(false); setAccountOpen(true) }}>
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                          تغيير كلمة المرور
+                        </button>
+                        <button className="pdd-action-btn" onClick={() => openSettings('language')}>
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                          {t('set.language')}
+                        </button>
+                        <button className="pdd-action-btn" onClick={() => openSettings('transfer')}>
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+                          {t('set.transfer')}
+                        </button>
+                      </div>
 
                       <div className="profile-dd-divider" />
 
-                      <button className="profile-dd-item profile-dd-logout" onClick={handleLogout}>
+                      <button className="pdd-logout-btn" onClick={handleLogout}>
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                           <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
                           <polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
@@ -252,7 +267,10 @@ export default function Navbar() {
                 </AnimatePresence>
               </div>
             ) : (
-              <button className="btn-login" onClick={() => navigate('/login')}>{t('nav.login')}</button>
+              <div className="navbar-auth-btns">
+                <button className="btn-login" onClick={() => navigate('/login')}>{t('nav.login')}</button>
+                <button className="btn-register-nav" onClick={() => navigate('/register')}>{lang === 'ar' ? 'إنشاء حساب' : 'Sign Up'}</button>
+              </div>
             )}
 
             <button className={`hamburger${open ? ' hamburger-open' : ''}`}
