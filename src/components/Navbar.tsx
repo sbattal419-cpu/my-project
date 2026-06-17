@@ -6,6 +6,7 @@ import { useLang } from '../context/LanguageContext'
 import { signOut } from '../lib/auth'
 import { getUserNotifications, markNotificationsRead, type Notification } from '../lib/supabase-ipr'
 import SettingsModal, { type SettingsSection } from './SettingsModal'
+import AccountSettingsModal from './AccountSettingsModal'
 
 function EagleLogo() {
   const [src, setSrc] = useState('/eagle.png')
@@ -53,6 +54,7 @@ export default function Navbar() {
   const [notifOpen, setNotifOpen]           = useState(false)
   const [notifs, setNotifs]                 = useState<Notification[]>([])
   const [settingsSection, setSettingsSection] = useState<SettingsSection | null>(null)
+  const [accountOpen, setAccountOpen] = useState(false)
 
   const profileRef = useRef<HTMLDivElement>(null)
   const notifRef   = useRef<HTMLDivElement>(null)
@@ -108,7 +110,10 @@ export default function Navbar() {
 
   return (
     <>
-      {/* ── Settings Modal ── */}
+      {/* ── Account Settings Modal ── */}
+      <AccountSettingsModal open={accountOpen} onClose={() => setAccountOpen(false)} />
+
+      {/* ── Settings Modal (language / transfer) ── */}
       <AnimatePresence>
         {settingsSection && (
           <SettingsModal
@@ -219,9 +224,11 @@ export default function Navbar() {
                       <div className="profile-dd-divider" />
 
                       {/* Settings items */}
+                      <button className="profile-dd-item" onClick={() => { setProfileOpen(false); setAccountOpen(true) }}>
+                        <span style={{ fontSize: 14 }}>👤</span>
+                        {t('set.profile')}
+                      </button>
                       {([
-                        { icon: '👤', key: 'profile',  label: t('set.profile')  },
-                        { icon: '🔒', key: 'password', label: t('set.password') },
                         { icon: '🌐', key: 'language', label: t('set.language') },
                         { icon: '↗️', key: 'transfer', label: t('set.transfer') },
                       ] as { icon: string; key: SettingsSection; label: string }[]).map(item => (
@@ -274,7 +281,7 @@ export default function Navbar() {
               <div className="mobile-profile-section">
                 {avatarUrl && <img src={avatarUrl} alt="" className="mobile-profile-avatar" />}
                 <span className="mobile-profile-email">{user.email}</span>
-                <button className="btn-login mobile-login-btn" onClick={() => { openSettings('profile'); setOpen(false) }}>
+                <button className="btn-login mobile-login-btn" onClick={() => { setAccountOpen(true); setOpen(false) }}>
                   {t('set.profile')}
                 </button>
                 <button className="btn-login mobile-login-btn" style={{ background: '#ef4444' }} onClick={handleLogout}>
