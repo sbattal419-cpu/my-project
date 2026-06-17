@@ -55,6 +55,11 @@ export async function updatePassword(newPassword: string) {
   if (error) throw error
 }
 
+export async function verifyCurrentPassword(email: string, password: string) {
+  const { error } = await supabase.auth.signInWithPassword({ email, password })
+  if (error) throw new Error('كلمة المرور الحالية غير صحيحة')
+}
+
 export async function resetPassword(email: string) {
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
     redirectTo: `${window.location.origin}/reset-password`,

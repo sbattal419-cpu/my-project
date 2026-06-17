@@ -2042,6 +2042,43 @@ body {
 
 .bc-verify-actions { padding: 16px 20px; border-top: 1px solid var(--c-gray-200); }
 
+/* two-column form row */
+.bc-form-row-2 {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+.bc-form-row-2 .bc-form-group { flex: 1; }
+@media (max-width: 540px) {
+  .bc-form-row-2 { flex-direction: column; }
+}
+
+/* type-specific fields block */
+.bc-type-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 12px;
+  padding: 18px;
+  margin-top: 4px;
+}
+.bc-type-fields-header {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  padding: 6px 10px;
+  border-radius: 7px;
+  border: 1px solid;
+  width: fit-content;
+  margin-bottom: 4px;
+}
+
 /* extra fields section in registration form */
 .bc-extra-fields {
   background: rgba(59,130,246,0.04);

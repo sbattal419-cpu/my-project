@@ -90,6 +90,15 @@ export default function RegisterRightPage() {
     }
     return undefined
   }
+
+  const isFormValid = (): boolean => {
+    const base = form.title.trim() && form.holderName.trim()
+    if (!base) return false
+    if (form.ipType === 0) return !!form.workType
+    if (form.ipType === 1) return !!(form.description.trim())
+    if (form.ipType === 2) return !!(form.technicalField.trim() && form.inventors.trim() && form.claims.trim())
+    return true
+  }
   const [processing, setProcessing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<Result | null>(null)
@@ -304,6 +313,8 @@ export default function RegisterRightPage() {
               <p className="bc-card-desc">{t('rr.form.desc')}</p>
 
               <form className="bc-form" onSubmit={handleFormSubmit}>
+
+                {/* ── اختيار النوع ── */}
                 <div className="bc-form-group">
                   <label className="bc-label">{t('rr.ip.type')}</label>
                   <div className="ip-type-grid">
@@ -313,7 +324,7 @@ export default function RegisterRightPage() {
                         type="button"
                         className={`ip-type-btn${form.ipType === tp.value ? ' ip-type-selected' : ''}`}
                         style={{ '--type-color': tp.color, '--type-bg': tp.bg } as React.CSSProperties}
-                        onClick={() => setForm(f => ({ ...f, ipType: tp.value }))}
+                        onClick={() => setForm(f => ({ ...f, ipType: tp.value, title: '', description: '', workType: '', niceClass: '', logoDescription: '', technicalField: '', inventors: '', claims: '' }))}
                       >
                         {t(tp.labelKey)}
                       </button>
@@ -321,110 +332,155 @@ export default function RegisterRightPage() {
                   </div>
                 </div>
 
-                <div className="bc-form-group">
-                  <label className="bc-label">{t('rr.f.title')} <span className="bc-required">*</span></label>
-                  <input
-                    className="bc-input"
-                    placeholder={t('rr.ph.title')}
-                    value={form.title}
-                    onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
-                    required
-                  />
+                {/* ── مشترك: اسم صاحب الحق + البريد ── */}
+                <div className="bc-form-row-2">
+                  <div className="bc-form-group">
+                    <label className="bc-label">{t('rr.f.holder')} <span className="bc-required">*</span></label>
+                    <input className="bc-input" placeholder={t('rr.ph.holder')} value={form.holderName}
+                      onChange={e => setForm(f => ({ ...f, holderName: e.target.value }))} required />
+                  </div>
+                  <div className="bc-form-group">
+                    <label className="bc-label">{t('rr.f.email')} <span className="bc-optional">{t('rr.optional')}</span></label>
+                    <input className="bc-input" type="email" placeholder={t('rr.ph.email')} value={form.holderEmail}
+                      onChange={e => setForm(f => ({ ...f, holderEmail: e.target.value }))} />
+                  </div>
                 </div>
 
-                <div className="bc-form-group">
-                  <label className="bc-label">{t('rr.f.holder')} <span className="bc-required">*</span></label>
-                  <input
-                    className="bc-input"
-                    placeholder={t('rr.ph.holder')}
-                    value={form.holderName}
-                    onChange={e => setForm(f => ({ ...f, holderName: e.target.value }))}
-                    required
-                  />
-                </div>
-
-                <div className="bc-form-group">
-                  <label className="bc-label">{t('rr.f.email')} <span className="bc-optional">{t('rr.optional')}</span></label>
-                  <input
-                    className="bc-input"
-                    type="email"
-                    placeholder={t('rr.ph.email')}
-                    value={form.holderEmail}
-                    onChange={e => setForm(f => ({ ...f, holderEmail: e.target.value }))}
-                  />
-                </div>
-
-                <div className="bc-form-group">
-                  <label className="bc-label">{t('rr.f.desc')} <span className="bc-optional">{t('rr.optional')}</span></label>
-                  <textarea
-                    className="bc-input bc-textarea"
-                    rows={3}
-                    placeholder={t('rr.ph.desc')}
-                    value={form.description}
-                    onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
-                  />
-                </div>
-
-                {/* حقوق النشر */}
+                {/* ══ حقوق النشر (0) ══ */}
                 {form.ipType === 0 && (
-                  <div className="bc-extra-fields">
-                    <div className="bc-extra-fields-label">{t('rr.extra.copyright')}</div>
-                    <div className="bc-form-group">
-                      <label className="bc-label">{t('rr.f.work_type')} <span className="bc-optional">{t('rr.optional')}</span></label>
-                      <select className="bc-input bc-select" value={form.workType} onChange={e => setForm(f => ({ ...f, workType: e.target.value }))}>
-                        <option value="">{t('rr.ph.work_type')}</option>
-                        <option value="book">كتاب</option>
-                        <option value="software">برنامج / تطبيق</option>
-                        <option value="image">صورة / رسم</option>
-                        <option value="music">موسيقى / صوت</option>
-                        <option value="video">فيلم / مقطع</option>
-                        <option value="other">أخرى</option>
-                      </select>
-                    </div>
-                    <div className="bc-form-group">
-                      <label className="bc-label">{t('rr.f.pub_date')} <span className="bc-optional">{t('rr.optional')}</span></label>
-                      <input type="date" className="bc-input" value={form.publicationDate} onChange={e => setForm(f => ({ ...f, publicationDate: e.target.value }))} />
-                    </div>
-                  </div>
+                  <AnimatePresence mode="wait">
+                    <motion.div key="form-0" className="bc-type-fields"
+                      initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+                      transition={{ duration: 0.25, ease: EASE }}>
+                      <div className="bc-type-fields-header" style={{ background: 'rgba(37,99,235,0.07)', borderColor: 'rgba(37,99,235,0.18)', color: '#2563eb' }}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M14.83 14.83a4 4 0 1 1 0-5.66"/></svg>
+                        حقول حقوق النشر
+                      </div>
+                      <div className="bc-form-group">
+                        <label className="bc-label">{t('rr.f.title')} <span className="bc-required">*</span></label>
+                        <input className="bc-input" placeholder="مثال: رواية «الطريق الطويل»، تطبيق X، لوحة Y..." value={form.title}
+                          onChange={e => setForm(f => ({ ...f, title: e.target.value }))} required />
+                      </div>
+                      <div className="bc-form-group">
+                        <label className="bc-label">{t('rr.f.work_type')} <span className="bc-required">*</span></label>
+                        <select className="bc-input bc-select" value={form.workType}
+                          onChange={e => setForm(f => ({ ...f, workType: e.target.value }))}>
+                          <option value="">— اختر نوع العمل —</option>
+                          <option value="book">كتاب / مؤلَّف أدبي</option>
+                          <option value="software">برنامج / تطبيق</option>
+                          <option value="image">صورة / رسم / تصميم</option>
+                          <option value="music">موسيقى / تسجيل صوتي</option>
+                          <option value="video">فيلم / مقطع مرئي</option>
+                          <option value="other">أخرى</option>
+                        </select>
+                      </div>
+                      <div className="bc-form-row-2">
+                        <div className="bc-form-group">
+                          <label className="bc-label">{t('rr.f.pub_date')} <span className="bc-optional">{t('rr.optional')}</span></label>
+                          <input type="date" className="bc-input" value={form.publicationDate}
+                            onChange={e => setForm(f => ({ ...f, publicationDate: e.target.value }))} />
+                        </div>
+                        <div className="bc-form-group" style={{ flex: 2 }}>
+                          <label className="bc-label">وصف العمل <span className="bc-optional">{t('rr.optional')}</span></label>
+                          <input className="bc-input" placeholder="وصف مختصر للعمل الإبداعي..." value={form.description}
+                            onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
+                        </div>
+                      </div>
+                    </motion.div>
+                  </AnimatePresence>
                 )}
 
-                {/* العلامات التجارية */}
+                {/* ══ العلامات التجارية (1) ══ */}
                 {form.ipType === 1 && (
-                  <div className="bc-extra-fields">
-                    <div className="bc-extra-fields-label">{t('rr.extra.trademark')}</div>
-                    <div className="bc-form-group">
-                      <label className="bc-label">{t('rr.f.nice_class')} <span className="bc-optional">{t('rr.optional')}</span></label>
-                      <input className="bc-input" placeholder={t('rr.ph.nice_class')} value={form.niceClass} onChange={e => setForm(f => ({ ...f, niceClass: e.target.value }))} />
-                    </div>
-                    <div className="bc-form-group">
-                      <label className="bc-label">{t('rr.f.logo_desc')} <span className="bc-optional">{t('rr.optional')}</span></label>
-                      <textarea className="bc-input bc-textarea" rows={2} placeholder={t('rr.ph.logo_desc')} value={form.logoDescription} onChange={e => setForm(f => ({ ...f, logoDescription: e.target.value }))} />
-                    </div>
-                  </div>
+                  <AnimatePresence mode="wait">
+                    <motion.div key="form-1" className="bc-type-fields"
+                      initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+                      transition={{ duration: 0.25, ease: EASE }}>
+                      <div className="bc-type-fields-header" style={{ background: 'rgba(124,58,237,0.07)', borderColor: 'rgba(124,58,237,0.18)', color: '#7c3aed' }}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+                        حقول العلامة التجارية
+                      </div>
+                      <div className="bc-form-group">
+                        <label className="bc-label">اسم العلامة التجارية <span className="bc-required">*</span></label>
+                        <input className="bc-input" placeholder="مثال: شركة النور، منتج X..." value={form.title}
+                          onChange={e => setForm(f => ({ ...f, title: e.target.value }))} required />
+                      </div>
+                      <div className="bc-form-group">
+                        <label className="bc-label">وصف العلامة ونشاطها <span className="bc-required">*</span></label>
+                        <textarea className="bc-input bc-textarea" rows={3}
+                          placeholder="اشرح طبيعة العلامة والمجال التجاري الذي تُستخدم فيه..."
+                          value={form.description}
+                          onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
+                      </div>
+                      <div className="bc-form-row-2">
+                        <div className="bc-form-group">
+                          <label className="bc-label">{t('rr.f.nice_class')} <span className="bc-optional">{t('rr.optional')}</span>
+                            <InfoTip term="تصنيف نيس" explanation="نظام دولي لتصنيف السلع والخدمات (45 فئة). مثال: الفئة 9 للبرمجيات، 25 للملابس، 35 للخدمات التجارية." /></label>
+                          <input className="bc-input" placeholder="مثال: 9، 25، 35..." value={form.niceClass}
+                            onChange={e => setForm(f => ({ ...f, niceClass: e.target.value }))} />
+                        </div>
+                        <div className="bc-form-group" style={{ flex: 2 }}>
+                          <label className="bc-label">وصف الشعار <span className="bc-optional">{t('rr.optional')}</span></label>
+                          <input className="bc-input" placeholder="وصف مختصر لشكل الشعار ومكوناته..." value={form.logoDescription}
+                            onChange={e => setForm(f => ({ ...f, logoDescription: e.target.value }))} />
+                        </div>
+                      </div>
+                    </motion.div>
+                  </AnimatePresence>
                 )}
 
-                {/* براءات الاختراع */}
+                {/* ══ براءات الاختراع (2) ══ */}
                 {form.ipType === 2 && (
-                  <div className="bc-extra-fields">
-                    <div className="bc-extra-fields-label">{t('rr.extra.patent')}</div>
-                    <div className="bc-form-group">
-                      <label className="bc-label">{t('rr.f.tech_field')} <span className="bc-optional">{t('rr.optional')}</span></label>
-                      <input className="bc-input" placeholder={t('rr.ph.tech_field')} value={form.technicalField} onChange={e => setForm(f => ({ ...f, technicalField: e.target.value }))} />
-                    </div>
-                    <div className="bc-form-group">
-                      <label className="bc-label">{t('rr.f.inventors')} <span className="bc-optional">{t('rr.optional')}</span></label>
-                      <input className="bc-input" placeholder={t('rr.ph.inventors')} value={form.inventors} onChange={e => setForm(f => ({ ...f, inventors: e.target.value }))} />
-                    </div>
-                    <div className="bc-form-group">
-                      <label className="bc-label">{t('rr.f.claims')} <span className="bc-optional">{t('rr.optional')}</span></label>
-                      <textarea className="bc-input bc-textarea" rows={3} placeholder={t('rr.ph.claims')} value={form.claims} onChange={e => setForm(f => ({ ...f, claims: e.target.value }))} />
-                    </div>
-                  </div>
+                  <AnimatePresence mode="wait">
+                    <motion.div key="form-2" className="bc-type-fields"
+                      initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+                      transition={{ duration: 0.25, ease: EASE }}>
+                      <div className="bc-type-fields-header" style={{ background: 'rgba(217,119,6,0.07)', borderColor: 'rgba(217,119,6,0.2)', color: '#d97706' }}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/></svg>
+                        حقول براءة الاختراع
+                      </div>
+                      <div className="bc-form-group">
+                        <label className="bc-label">عنوان الاختراع <span className="bc-required">*</span></label>
+                        <input className="bc-input" placeholder="مثال: نظام ذكاء اصطناعي لتشخيص الأمراض..." value={form.title}
+                          onChange={e => setForm(f => ({ ...f, title: e.target.value }))} required />
+                      </div>
+                      <div className="bc-form-row-2">
+                        <div className="bc-form-group">
+                          <label className="bc-label">{t('rr.f.tech_field')} <span className="bc-required">*</span></label>
+                          <input className="bc-input" placeholder="مثال: ذكاء اصطناعي، طاقة متجددة..." value={form.technicalField}
+                            onChange={e => setForm(f => ({ ...f, technicalField: e.target.value }))} />
+                        </div>
+                        <div className="bc-form-group" style={{ flex: 2 }}>
+                          <label className="bc-label">{t('rr.f.inventors')} <span className="bc-required">*</span></label>
+                          <input className="bc-input" placeholder="أسماء المخترعين، مفصولة بفاصلة..." value={form.inventors}
+                            onChange={e => setForm(f => ({ ...f, inventors: e.target.value }))} />
+                        </div>
+                      </div>
+                      <div className="bc-form-group">
+                        <label className="bc-label">
+                          {t('rr.f.claims')} <span className="bc-required">*</span>
+                          <InfoTip term="المطالبات (Claims)" explanation="الجزء القانوني الأهم في براءة الاختراع — يُحدد بدقة ما تطالب بحمايته. كل مطالبة هي جملة تصف عنصراً مبتكراً في اختراعك." />
+                        </label>
+                        <textarea className="bc-input bc-textarea" rows={4}
+                          placeholder="صِف مطالبات الحماية: ما الذي يجعل اختراعك فريداً وما الذي تطالب بحمايته..."
+                          value={form.claims}
+                          onChange={e => setForm(f => ({ ...f, claims: e.target.value }))} />
+                      </div>
+                      <div className="bc-form-group">
+                        <label className="bc-label">وصف تقني <span className="bc-optional">{t('rr.optional')}</span></label>
+                        <textarea className="bc-input bc-textarea" rows={2}
+                          placeholder="شرح إضافي للآلية التقنية..."
+                          value={form.description}
+                          onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
+                      </div>
+                    </motion.div>
+                  </AnimatePresence>
                 )}
 
+                {/* ── رفع الملف (مشترك) ── */}
                 <div className="bc-form-group">
                   <label className="bc-label">
-                    {t('rr.file.label')}
+                    {form.ipType === 1 ? 'صورة الشعار' : form.ipType === 2 ? 'الملفات التقنية' : 'الملف المراد حمايته'}
                     <span className="bc-optional"> {t('rr.file.opt')}</span>
                   </label>
                   <label className={`file-upload-zone${file ? ' file-upload-zone--has' : ''}`}>
@@ -462,7 +518,7 @@ export default function RegisterRightPage() {
                 <button
                   type="submit"
                   className="btn-bc-primary"
-                  disabled={!form.title.trim() || !form.holderName.trim() || hashing}
+                  disabled={!isFormValid() || hashing}
                 >
                   {t('rr.next')}
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
