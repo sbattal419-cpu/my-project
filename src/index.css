@@ -1472,6 +1472,54 @@ body {
 .profile-dd-logout { color: rgba(239,100,100,0.85); }
 .profile-dd-logout:hover { background: rgba(239,68,68,0.15); color: #f87171; }
 
+/* avatar in header: clickable overlay */
+.profile-dd-avatar-clickable { position: relative; cursor: pointer; overflow: hidden; border-radius: 50%; }
+.profile-dd-avatar-overlay {
+  position: absolute; inset: 0;
+  background: rgba(0,0,0,0.55);
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; transition: opacity 0.2s; border-radius: 50%;
+}
+.profile-dd-avatar-clickable:hover .profile-dd-avatar-overlay { opacity: 1; }
+
+/* user name inside header */
+.profile-dd-user-col { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.profile-dd-name { font-size: 13px; font-weight: 700; color: #f1f5f9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* guest panel */
+.profile-dd-guest {
+  padding: 18px 16px 14px;
+  display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center;
+}
+.profile-dd-guest-icon {
+  width: 52px; height: 52px; border-radius: 50%;
+  background: rgba(255,255,255,0.05);
+  border: 1.5px solid rgba(255,255,255,0.1);
+  display: flex; align-items: center; justify-content: center;
+  color: #64748b; margin-bottom: 4px;
+}
+.profile-dd-guest-title { font-size: 14px; font-weight: 700; color: #f1f5f9; margin: 0; }
+.profile-dd-guest-sub { font-size: 12px; color: #64748b; margin: 0; }
+
+/* auth buttons in guest dropdown */
+.profile-dd-auth-btn {
+  display: flex; align-items: center; gap: 10px;
+  width: calc(100% - 16px); margin: 4px 8px;
+  padding: 10px 14px; border-radius: 10px;
+  font-size: 13px; font-weight: 600; cursor: pointer;
+  transition: all 0.2s; font-family: inherit; border: none;
+}
+.profile-dd-auth-primary {
+  background: #2563eb; color: #fff;
+}
+.profile-dd-auth-primary:hover { background: #1d4ed8; }
+.profile-dd-auth-secondary {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1) !important;
+  color: #94a3b8;
+}
+.profile-dd-auth-secondary:hover { background: rgba(255,255,255,0.09); color: #f1f5f9; }
+
 /* ── Wide profile dropdown (new) ── */
 .profile-dropdown-wide { width: 260px; padding: 0; overflow: hidden; }
 
