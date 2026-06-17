@@ -193,15 +193,23 @@ export default function Navbar() {
             )}
 
             {/* Profile / Login */}
+            <AnimatePresence mode="wait">
             {user ? (
               <div className="profile-wrap" ref={profileRef}>
-                <button className="profile-btn"
+                <motion.button
+                  key="avatar-btn"
+                  className="profile-btn"
                   onClick={() => { setProfileOpen(v => !v); setNotifOpen(false) }}
-                  aria-label="الملف الشخصي">
+                  aria-label="الملف الشخصي"
+                  initial={{ opacity: 0, scale: 0.7 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.7 }}
+                  transition={{ duration: 0.22, ease: 'easeOut' }}
+                >
                   {avatarUrl
                     ? <img src={avatarUrl} alt="" className="profile-avatar" />
                     : <span className="profile-initials">{initials}</span>}
-                </button>
+                </motion.button>
 
                 <AnimatePresence>
                   {profileOpen && (
@@ -250,8 +258,19 @@ export default function Navbar() {
                 </AnimatePresence>
               </div>
             ) : (
-              <button className="btn-login" onClick={() => navigate('/login')}>{t('nav.login')}</button>
+              <motion.button
+                key="login-btn"
+                className="btn-login"
+                onClick={() => navigate('/login')}
+                initial={{ opacity: 0, scale: 0.7 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.7 }}
+                transition={{ duration: 0.22, ease: 'easeOut' }}
+              >
+                {t('nav.login')}
+              </motion.button>
             )}
+            </AnimatePresence>
 
             <button className={`hamburger${open ? ' hamburger-open' : ''}`}
               onClick={() => setOpen(!open)} aria-label="القائمة">
