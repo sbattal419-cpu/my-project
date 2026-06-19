@@ -666,7 +666,8 @@ export default function RegisterRightPage() {
                             <p className="file-upload-hash">
                               SHA-256: {fileHash.slice(0, 14)}...{fileHash.slice(-6)}
                               <InfoTip term="SHA-256" explanation="خوارزمية تحوّل ملفك إلى بصمة رقمية فريدة (64 حرفاً). إذا تغيّر حرف واحد في الملف تتغير البصمة كاملاً — دليل قاطع أن الملف لم يُعدَّل." />
-                            </p>}
+                            </p>
+                          )}
                           {pHash && !hashing && (
                             <p className="file-upload-hash" style={{color:'#a78bfa'}}>
                               pHash: {pHash.slice(0, 12)}... ✓

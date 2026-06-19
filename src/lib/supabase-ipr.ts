@@ -33,6 +33,9 @@ export interface RightsRow {
   block_number: number
   wallet_address: string
   extra_fields: ExtraFields | null
+  perceptual_hash: string | null
+  status: 'pending' | 'approved' | 'rejected'
+  review_note: string | null
   created_at: string
 }
 
@@ -96,11 +99,13 @@ export async function uploadIPFile(file: File, certId: string): Promise<void> {
   const { error: uploadErr } = await supabase.storage.from('ip-files').upload(path, file)
   if (uploadErr) throw uploadErr
 
+  const { data: { user } } = await supabase.auth.getUser()
   const { error: dbErr } = await supabase.from('Ip_files').insert({
-    file_name:   file.name,
-    file_type:   file.type || ext,
-    uploaded_at: new Date().toISOString().slice(0, 10),
-    ip_id:       Number(certId) || null,
+    cert_id:      certId,
+    file_name:    file.name,
+    file_type:    file.type || ext,
+    uploaded_at:  new Date().toISOString().slice(0, 10),
+    auth_user_id: user?.id ?? null,
   })
   if (dbErr) throw dbErr
 }
