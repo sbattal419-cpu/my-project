@@ -264,12 +264,12 @@ export default function RegisterRightPage() {
     setChecking(true)
     setError(null)
     try {
-      const { isDuplicate, similarTitle } = await checkPerceptualDuplicate(pHash)
+      const { isDuplicate, similarTitle, similarHolder } = await checkPerceptualDuplicate(pHash)
       if (isDuplicate) {
         setError(
           lang === 'ar'
-            ? `تم رفض الملف — صورة مشابهة مسجّلة مسبقاً باسم: "${similarTitle}"`
-            : `File rejected — a similar image is already registered as: "${similarTitle}"`
+            ? `هذا الملف مسجّل مسبقاً — العمل: "${similarTitle}" — صاحب الحق: ${similarHolder}`
+            : `This file is already registered — Work: "${similarTitle}" — Rights holder: ${similarHolder}`
         )
         return
       }

@@ -55,17 +55,17 @@ export interface SaveCertParams {
 // ─── فحص التشابه البصري قبل التسجيل ─────────────────────────────────────────
 export async function checkPerceptualDuplicate(
   pHash: string
-): Promise<{ isDuplicate: boolean; similarTitle?: string }> {
+): Promise<{ isDuplicate: boolean; similarTitle?: string; similarHolder?: string }> {
   const { data } = await supabase
     .from('Rights')
-    .select('title, perceptual_hash')
+    .select('title, holder_name, perceptual_hash')
     .not('perceptual_hash', 'is', null)
 
   if (!data?.length) return { isDuplicate: false }
 
-  for (const row of data as { title: string; perceptual_hash: string }[]) {
+  for (const row of data as { title: string; holder_name: string; perceptual_hash: string }[]) {
     if (row.perceptual_hash && hammingDistance(pHash, row.perceptual_hash) <= PHASH_THRESHOLD) {
-      return { isDuplicate: true, similarTitle: row.title }
+      return { isDuplicate: true, similarTitle: row.title, similarHolder: row.holder_name }
     }
   }
   return { isDuplicate: false }
