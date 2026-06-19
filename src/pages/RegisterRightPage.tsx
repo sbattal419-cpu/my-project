@@ -59,6 +59,13 @@ export default function RegisterRightPage() {
   const { user } = useAuth()
   const { t, lang } = useLang()
 
+  // تبديل تلقائي لشبكة Sepolia إذا كانت المحفظة مربوطة على شبكة خاطئة
+  useEffect(() => {
+    if (wallet.isConnected && !wallet.isSepolia) {
+      wallet.switchToSepolia()
+    }
+  }, [wallet.isConnected, wallet.isSepolia])
+
   // ── KYC gate ──────────────────────────────────────────────────────────────
   const [kycDone,    setKycDone]    = useState<boolean>(!!(user?.user_metadata?.id_verified))
   const [kycFile,    setKycFile]    = useState<File | null>(null)
