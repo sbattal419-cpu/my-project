@@ -61,7 +61,7 @@ export default function App() {
           <Route path="/register-right" element={<ProtectedRoute><RegisterRightPage /></ProtectedRoute>} />
           <Route path="/verify" element={<VerifyPage />} />
           <Route path="/certificates" element={<CertificatesPage />} />
-          <Route path="/admin" element={<AdminDashboard />} />
+          <Route path="/admin" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/privacy" element={<PrivacyPage />} />
           <Route path="/terms" element={<TermsPage />} />
