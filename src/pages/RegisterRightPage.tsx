@@ -1,15 +1,16 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Link } from 'react-router-dom'
 import { useWallet } from '../hooks/useWallet'
-import { registerIPOnChain, hashFile, isContractDeployed } from '../lib/blockchain'
-import { saveCertToSupabase, uploadIPFile, type ExtraFields } from '../lib/supabase-ipr'
+import { registerIPOnChain, hashFile, computePerceptualHash, isContractDeployed } from '../lib/blockchain'
+import { saveCertToSupabase, uploadIPFile, checkPerceptualDuplicate, type ExtraFields } from '../lib/supabase-ipr'
 import { useAuth } from '../context/AuthContext'
 import { useLang } from '../context/LanguageContext'
 import { IP_TYPES, BLOCKCHAIN } from '../config/blockchain.config'
 import WalletConnect from '../components/WalletConnect'
 import InfoTip from '../components/InfoTip'
 import { playSuccess, playError } from '../lib/sounds'
+import { uploadIDDocument } from '../lib/auth'
 
 const EASE = 'easeOut' as const
 
@@ -56,7 +57,134 @@ function StepDot({ num, label, active, done }: { num: number; label: string; act
 export default function RegisterRightPage() {
   const wallet = useWallet()
   const { user } = useAuth()
-  const { t } = useLang()
+  const { t, lang } = useLang()
+
+  // ── KYC gate ──────────────────────────────────────────────────────────────
+  const [kycDone,    setKycDone]    = useState<boolean>(!!(user?.user_metadata?.id_verified))
+  const [kycFile,    setKycFile]    = useState<File | null>(null)
+  const [kycPreview, setKycPreview] = useState<string | null>(null)
+  const [kycLoading, setKycLoading] = useState(false)
+  const [kycError,   setKycError]   = useState<string | null>(null)
+  const kycInputRef = useRef<HTMLInputElement>(null)
+
+  const handleKycFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0]
+    if (!f) return
+    if (f.size > 10 * 1024 * 1024) { setKycError(lang === 'ar' ? 'حجم الملف يجب أن يكون أقل من 10 ميغابايت' : 'File must be under 10 MB'); return }
+    setKycFile(f)
+    setKycError(null)
+    if (f.type.startsWith('image/')) setKycPreview(URL.createObjectURL(f))
+    else setKycPreview(null)
+  }
+
+  const handleKycSubmit = async () => {
+    if (!kycFile || !user) return
+    setKycLoading(true)
+    setKycError(null)
+    try {
+      await uploadIDDocument(kycFile, user.id)
+      setKycDone(true)
+    } catch (err) {
+      setKycError(lang === 'ar' ? 'فشل الرفع، يرجى المحاولة مرة أخرى' : 'Upload failed, please try again')
+    } finally {
+      setKycLoading(false)
+    }
+  }
+
+  if (!kycDone) {
+    return (
+      <div className="kyc-page">
+        <div className="kyc-bg-pattern" />
+        <motion.div
+          className="kyc-card"
+          initial={{ opacity: 0, y: 24 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.45, ease: EASE }}
+        >
+          {/* header */}
+          <div className="kyc-header">
+            <div className="kyc-shield">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 2L3 6v6c0 5.25 3.75 10.15 9 11.25C17.25 22.15 21 17.25 21 12V6L12 2z"/>
+                <polyline points="9 12 11 14 15 10"/>
+              </svg>
+            </div>
+            <h2 className="kyc-title">{lang === 'ar' ? 'التحقق من الهوية مطلوب' : 'Identity Verification Required'}</h2>
+            <p className="kyc-subtitle">
+              {lang === 'ar'
+                ? 'لحماية حقوق الملكية الفكرية وضمان صحة البيانات، يجب إرفاق صورة هويتك الرسمية قبل التسجيل.'
+                : 'To protect intellectual property rights and ensure data authenticity, a government-issued ID is required before registration.'}
+            </p>
+          </div>
+
+          {/* what's accepted */}
+          <div className="kyc-accepted">
+            {[
+              { icon: '🪪', label: lang === 'ar' ? 'بطاقة هوية وطنية' : 'National ID Card' },
+              { icon: '📘', label: lang === 'ar' ? 'جواز سفر' : 'Passport' },
+              { icon: '🚗', label: lang === 'ar' ? 'رخصة قيادة' : 'Driver\'s License' },
+            ].map(item => (
+              <div key={item.label} className="kyc-accepted-item">
+                <span>{item.icon}</span>
+                <span>{item.label}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* upload zone */}
+          <input ref={kycInputRef} type="file" hidden accept="image/*,.pdf" onChange={handleKycFile} />
+          <button
+            type="button"
+            className={`kyc-upload-zone${kycFile ? ' kyc-upload-zone--has' : ''}`}
+            onClick={() => kycInputRef.current?.click()}
+          >
+            {kycPreview ? (
+              <img src={kycPreview} alt="preview" className="kyc-preview-img" />
+            ) : kycFile ? (
+              <>
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2" strokeLinecap="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>
+                <span className="kyc-filename">{kycFile.name}</span>
+              </>
+            ) : (
+              <>
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="1.5" strokeLinecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                <p className="kyc-upload-hint">{lang === 'ar' ? 'اضغط لاختيار صورة الهوية' : 'Click to upload your ID photo'}</p>
+                <p className="kyc-upload-sub">{lang === 'ar' ? 'صورة أو PDF — الحد الأقصى 10 ميغابايت' : 'Image or PDF — max 10 MB'}</p>
+              </>
+            )}
+          </button>
+
+          {kycError && (
+            <p className="kyc-error">{kycError}</p>
+          )}
+
+          {/* privacy note */}
+          <div className="kyc-privacy">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            <span>
+              {lang === 'ar'
+                ? 'صورتك تُخزَّن بشكل مشفّر في قاعدة بيانات خاصة ولن تظهر للعموم أبداً'
+                : 'Your ID is stored encrypted in a private bucket and will never be publicly visible'}
+            </span>
+          </div>
+
+          <button
+            className="kyc-submit-btn"
+            disabled={!kycFile || kycLoading}
+            onClick={handleKycSubmit}
+          >
+            {kycLoading
+              ? <><span className="btn-spinner" />{lang === 'ar' ? 'جاري الرفع...' : 'Uploading...'}</>
+              : lang === 'ar' ? 'تأكيد وإرسال الهوية' : 'Confirm & Submit ID'
+            }
+          </button>
+
+          <Link to="/" className="kyc-back">{lang === 'ar' ? '← العودة للرئيسية' : '← Back to Home'}</Link>
+        </motion.div>
+      </div>
+    )
+  }
+
   const [step, setStep] = useState<Step>('form')
   const [form, setForm] = useState<FormData>({
     title: '', ipType: 0, description: '', holderName: '', holderEmail: '',
@@ -94,6 +222,7 @@ export default function RegisterRightPage() {
   const isFormValid = (): boolean => {
     const base = form.title.trim() && form.holderName.trim()
     if (!base) return false
+    if (!fileHash || hashing) return false
     if (form.ipType === 0) return !!form.workType
     if (form.ipType === 1) return !!(form.description.trim())
     if (form.ipType === 2) return !!(form.technicalField.trim() && form.inventors.trim() && form.claims.trim())
@@ -104,25 +233,52 @@ export default function RegisterRightPage() {
   const [result, setResult] = useState<Result | null>(null)
   const [file, setFile] = useState<File | null>(null)
   const [fileHash, setFileHash] = useState<string | null>(null)
-  const [hashing, setHashing] = useState(false)
+  const [pHash,    setPHash]    = useState<string | null>(null)
+  const [hashing,  setHashing]  = useState(false)
+  const [checking, setChecking] = useState(false)
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = e.target.files?.[0]
     if (!selected) return
     if (selected.size > 50 * 1024 * 1024) { setError(t('rr.file.toobig')); return }
     setFile(selected)
+    setFileHash(null)
+    setPHash(null)
+    setError(null)
     setHashing(true)
     try {
-      const hash = await hashFile(selected)
-      setFileHash(hash)
+      const [sha, ph] = await Promise.all([
+        hashFile(selected),
+        computePerceptualHash(selected),
+      ])
+      setFileHash(sha)
+      setPHash(ph)
     } finally {
       setHashing(false)
     }
   }
 
-  const handleFormSubmit = (e: React.FormEvent) => {
+  const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setStep('confirm')
+    if (!pHash) { setStep('confirm'); return }
+    setChecking(true)
+    setError(null)
+    try {
+      const { isDuplicate, similarTitle } = await checkPerceptualDuplicate(pHash)
+      if (isDuplicate) {
+        setError(
+          lang === 'ar'
+            ? `تم رفض الملف — صورة مشابهة مسجّلة مسبقاً باسم: "${similarTitle}"`
+            : `File rejected — a similar image is already registered as: "${similarTitle}"`
+        )
+        return
+      }
+      setStep('confirm')
+    } catch {
+      setStep('confirm')
+    } finally {
+      setChecking(false)
+    }
   }
 
   const handleRegister = async () => {
@@ -136,21 +292,22 @@ export default function RegisterRightPage() {
         description: form.description,
         holderName: form.holderName,
         ownerAddress: wallet.address!,
-        fileHash: fileHash ?? undefined,
+        fileHash: fileHash!,
       })
 
       if (user) {
         try {
           await saveCertToSupabase({
-            userId:        user.id,
-            walletAddress: wallet.address!,
-            title:         form.title,
-            ipType:        form.ipType,
-            description:   form.description,
-            holderName:    form.holderName,
-            holderEmail:   form.holderEmail || undefined,
-            extraFields:   buildExtraFields(),
-            result:        res,
+            userId:         user.id,
+            walletAddress:  wallet.address!,
+            title:          form.title,
+            ipType:         form.ipType,
+            description:    form.description,
+            holderName:     form.holderName,
+            holderEmail:    form.holderEmail || undefined,
+            extraFields:    buildExtraFields(),
+            perceptualHash: pHash ?? undefined,
+            result:         res,
           })
           if (file) {
             try { await uploadIPFile(file, res.certId) } catch (e) { console.error('File upload error:', e) }
@@ -481,7 +638,7 @@ export default function RegisterRightPage() {
                 <div className="bc-form-group">
                   <label className="bc-label">
                     {form.ipType === 1 ? 'صورة الشعار' : form.ipType === 2 ? 'الملفات التقنية' : 'الملف المراد حمايته'}
-                    <span className="bc-optional"> {t('rr.file.opt')}</span>
+                    <span className="bc-required"> *</span>
                   </label>
                   <label className={`file-upload-zone${file ? ' file-upload-zone--has' : ''}`}>
                     <input type="file" className="file-upload-input" onChange={handleFileChange} accept="*/*" />
@@ -492,6 +649,9 @@ export default function RegisterRightPage() {
                         </svg>
                         <p className="file-upload-hint">{t('rr.file.hint')}</p>
                         <p className="file-upload-sub">{t('rr.file.max')}</p>
+                        <p className="file-upload-sub" style={{color:'#f59e0b',marginTop:4}}>
+                          {lang === 'ar' ? 'مطلوب — يمنع تكرار تسجيل نفس الملف من أي شخص' : 'Required — prevents duplicate registration of the same file'}
+                        </p>
                       </>
                     ) : (
                       <div className="file-upload-preview">
@@ -506,6 +666,11 @@ export default function RegisterRightPage() {
                             <p className="file-upload-hash">
                               SHA-256: {fileHash.slice(0, 14)}...{fileHash.slice(-6)}
                               <InfoTip term="SHA-256" explanation="خوارزمية تحوّل ملفك إلى بصمة رقمية فريدة (64 حرفاً). إذا تغيّر حرف واحد في الملف تتغير البصمة كاملاً — دليل قاطع أن الملف لم يُعدَّل." />
+                            </p>}
+                          {pHash && !hashing && (
+                            <p className="file-upload-hash" style={{color:'#a78bfa'}}>
+                              pHash: {pHash.slice(0, 12)}... ✓
+                              <InfoTip term="Perceptual Hash" explanation="بصمة بصرية للصورة — تكشف التشابه حتى لو عُدِّلت الألوان أو قُصَّت الحواف." />
                             </p>
                           )}
                         </div>
@@ -518,7 +683,7 @@ export default function RegisterRightPage() {
                 <button
                   type="submit"
                   className="btn-bc-primary"
-                  disabled={!isFormValid() || hashing}
+                  disabled={!isFormValid() || hashing || checking}
                 >
                   {t('rr.next')}
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">

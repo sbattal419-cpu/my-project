@@ -76,3 +76,18 @@ export async function updatePhone(phone: string) {
   const { error } = await supabase.auth.updateUser({ data: { phone_number: phone } })
   if (error) throw error
 }
+
+export async function uploadIDDocument(file: File, userId: string): Promise<void> {
+  const ext  = file.name.split('.').pop() ?? 'jpg'
+  const path = `${userId}/id.${ext}`
+
+  const { error: uploadError } = await supabase.storage
+    .from('id-documents')
+    .upload(path, file, { upsert: true, contentType: file.type })
+  if (uploadError) throw uploadError
+
+  const { error: updateError } = await supabase.auth.updateUser({
+    data: { id_verified: true, id_uploaded_at: new Date().toISOString() },
+  })
+  if (updateError) throw updateError
+}

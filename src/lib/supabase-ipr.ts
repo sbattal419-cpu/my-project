@@ -1,5 +1,6 @@
 import { supabase } from './supabase'
 import type { RegisterResult } from './blockchain'
+import { hammingDistance, PHASH_THRESHOLD } from './blockchain'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 export interface ExtraFieldsCopyright {
@@ -44,24 +45,45 @@ export interface SaveCertParams {
   holderName: string
   holderEmail?: string
   extraFields?: ExtraFields
+  perceptualHash?: string
   result: RegisterResult
+}
+
+// ─── فحص التشابه البصري قبل التسجيل ─────────────────────────────────────────
+export async function checkPerceptualDuplicate(
+  pHash: string
+): Promise<{ isDuplicate: boolean; similarTitle?: string }> {
+  const { data } = await supabase
+    .from('Rights')
+    .select('title, perceptual_hash')
+    .not('perceptual_hash', 'is', null)
+
+  if (!data?.length) return { isDuplicate: false }
+
+  for (const row of data as { title: string; perceptual_hash: string }[]) {
+    if (row.perceptual_hash && hammingDistance(pHash, row.perceptual_hash) <= PHASH_THRESHOLD) {
+      return { isDuplicate: true, similarTitle: row.title }
+    }
+  }
+  return { isDuplicate: false }
 }
 
 // ─── حفظ بعد تسجيل البلوكتشين ────────────────────────────────────────────────
 export async function saveCertToSupabase(params: SaveCertParams): Promise<void> {
   const { error } = await supabase.from('Rights').insert({
-    auth_user_id:  params.userId,
-    wallet_address: params.walletAddress,
-    title:         params.title,
-    ip_type:       params.ipType,
-    description:   params.description,
-    holder_name:   params.holderName,
-    holder_email:  params.holderEmail ?? null,
-    extra_fields:  params.extraFields ?? null,
-    cert_id:       params.result.certId,
-    tx_hash:       params.result.txHash,
-    document_hash: params.result.documentHash,
-    block_number:  params.result.blockNumber,
+    auth_user_id:    params.userId,
+    wallet_address:  params.walletAddress,
+    title:           params.title,
+    ip_type:         params.ipType,
+    description:     params.description,
+    holder_name:     params.holderName,
+    holder_email:    params.holderEmail ?? null,
+    extra_fields:    params.extraFields ?? null,
+    perceptual_hash: params.perceptualHash ?? null,
+    cert_id:         params.result.certId,
+    tx_hash:         params.result.txHash,
+    document_hash:   params.result.documentHash,
+    block_number:    params.result.blockNumber,
   })
   if (error) throw error
 }

@@ -128,13 +128,71 @@ export function truncateHash(hash: string): string {
   return `${hash.slice(0, 10)}...${hash.slice(-8)}`
 }
 
-// ─── الخيار أ: تسجيل الحق على البلوكتشين ─────────────────────────────────────
+// ─── SHA-256 ──────────────────────────────────────────────────────────────────
 export async function hashFile(file: File): Promise<string> {
   const buffer    = await file.arrayBuffer()
   const hashBuf   = await crypto.subtle.digest('SHA-256', buffer)
   const hashArray = Array.from(new Uint8Array(hashBuf))
   return '0x' + hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
 }
+
+// ─── Perceptual Hash (dHash) — للصور فقط ─────────────────────────────────────
+// خوارزمية dHash: تقارن البيكسلات المتجاورة في صورة مصغّرة 9×8
+// النتيجة: سلسلة 64 حرف (0/1) — صور متشابهة = أرقام متقاربة
+export async function computePerceptualHash(file: File): Promise<string | null> {
+  if (!file.type.startsWith('image/')) return null
+
+  return new Promise((resolve) => {
+    const img = new Image()
+    const url = URL.createObjectURL(file)
+
+    img.onload = () => {
+      try {
+        const canvas = document.createElement('canvas')
+        canvas.width  = 9
+        canvas.height = 8
+        const ctx = canvas.getContext('2d')
+        if (!ctx) { URL.revokeObjectURL(url); resolve(null); return }
+
+        ctx.drawImage(img, 0, 0, 9, 8)
+        const { data } = ctx.getImageData(0, 0, 9, 8)
+
+        let hash = ''
+        for (let y = 0; y < 8; y++) {
+          for (let x = 0; x < 8; x++) {
+            const i1 = (y * 9 + x)     * 4
+            const i2 = (y * 9 + x + 1) * 4
+            const gray1 = 0.299 * data[i1] + 0.587 * data[i1 + 1] + 0.114 * data[i1 + 2]
+            const gray2 = 0.299 * data[i2] + 0.587 * data[i2 + 1] + 0.114 * data[i2 + 2]
+            hash += gray1 > gray2 ? '1' : '0'
+          }
+        }
+
+        URL.revokeObjectURL(url)
+        resolve(hash)
+      } catch {
+        URL.revokeObjectURL(url)
+        resolve(null)
+      }
+    }
+
+    img.onerror = () => { URL.revokeObjectURL(url); resolve(null) }
+    img.src = url
+  })
+}
+
+// مسافة هامينغ: كم بت مختلف بين هاشين (0 = متطابق، 64 = مختلف كلياً)
+export function hammingDistance(h1: string, h2: string): number {
+  let dist = 0
+  const len = Math.min(h1.length, h2.length)
+  for (let i = 0; i < len; i++) {
+    if (h1[i] !== h2[i]) dist++
+  }
+  return dist
+}
+
+// عتبة التشابه: مسافة ≤ 10 = رفض (تشابه ~84%+)
+export const PHASH_THRESHOLD = 10
 
 export interface RegisterParams {
   title: string
