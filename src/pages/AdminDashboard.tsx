@@ -68,7 +68,7 @@ export default function AdminDashboard() {
   const [actionLoading, setActionLoading] = useState<number | null>(null)
   const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null)
 
-  const ADMIN_EMAILS = ['sbattal419@gmail.com']
+  const ADMIN_EMAILS = ['sbattal419@gmail.com', 'joudhija@gmail.com']
 
   useEffect(() => {
     if (loading) return
