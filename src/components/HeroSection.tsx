@@ -48,18 +48,6 @@ export default function HeroSection() {
               {t('hero.desc')}
             </motion.p>
 
-            <motion.div
-              className="hero-why-block"
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, ease: EASE, delay: 0.38 }}
-            >
-              <span className="hero-why-label">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/>
-                </svg>
-              </span>
-            </motion.div>
 
             <motion.div
               className="hero-actions"
