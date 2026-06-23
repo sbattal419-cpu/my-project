@@ -1,3 +1,9 @@
+// ════════════════════════════════════════════════════════════════
+// FILE: src/hooks/useEIP6963.ts
+// يكتشف المحافظ المتاحة في المتصفح عبر معيار EIP-6963
+// يُرجع قائمة بالمحافظ (MetaMask, Coinbase, Rabby...) مع مزوّد كل منها
+// يُستخدم في: WalletSelectorModal لعرض خيارات الاتصال
+// ════════════════════════════════════════════════════════════════
 import { useState, useEffect } from 'react'
 
 export interface EIP6963WalletInfo {

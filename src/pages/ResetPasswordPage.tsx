@@ -1,3 +1,12 @@
+// ════════════════════════════════════════════════════════════════
+// FILE: src/pages/ResetPasswordPage.tsx
+// صفحة إعادة تعيين كلمة المرور — تُفتح من رابط الإيميل
+// المنطق:
+//   1. Supabase يُرسل رابطاً يحتوي token في الـ URL hash
+//   2. onAuthStateChange يكتشف حدث PASSWORD_RECOVERY → sessionReady=true
+//   3. المستخدم يُدخل كلمة مرور جديدة → supabase.auth.updateUser
+// إذا انتهت صلاحية الرابط → sessionReady يبقى false ويُعرض تحذير
+// ════════════════════════════════════════════════════════════════
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'

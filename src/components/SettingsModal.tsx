@@ -1,3 +1,13 @@
+// ════════════════════════════════════════════════════════════════
+// FILE: src/components/SettingsModal.tsx
+// مودال الإعدادات — يحتوي 4 أقسام:
+//   profile  → تعديل الاسم، الإيميل، الهاتف، الصورة
+//   password → تغيير كلمة المرور
+//   language → تبديل اللغة (عربي/إنجليزي)
+//   transfer → نقل ملكية شهادة على البلوكشين
+// يُفتح من: Navbar → قائمة المستخدم
+// للتعديل: ابحث عن اسم القسم مثل: ProfileSection / PasswordSection
+// ════════════════════════════════════════════════════════════════
 import { useState, useEffect, useRef, type ChangeEvent } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '../context/AuthContext'

@@ -1,3 +1,15 @@
+// ════════════════════════════════════════════════════════════════
+// FILE: src/components/AccountSettingsModal.tsx
+// مودال إعدادات الحساب الشامل — يفتح من دائرة الملف الشخصي في Navbar
+// الأقسام:
+//   1. التحقق بكلمة المرور الحالية (مطلوب قبل أي تعديل)
+//   2. تغيير الصورة الشخصية (uploadAvatar)
+//   3. تعديل الاسم (updateProfile)
+//   4. تغيير البريد الإلكتروني (updateEmail)
+//   5. تغيير كلمة المرور (updatePassword)
+//   6. التحقق من الهوية KYC (submitKYC / getKYCStatus)
+// للتعديل: ابحث عن اسم القسم مثل: Avatar / Name / Email / Password / KYC
+// ════════════════════════════════════════════════════════════════
 import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '../context/AuthContext'

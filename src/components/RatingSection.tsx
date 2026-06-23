@@ -1,3 +1,14 @@
+// ════════════════════════════════════════════════════════════════
+// FILE: src/components/RatingSection.tsx
+// قسم تقييم الموقع في الصفحة الرئيسية (1-5 نجوم)
+// للتعديل:
+//   نجوم التقييم  → ابحث عن Stars component
+//   حفظ التقييم   → ابحث عن handleSubmit
+// المنطق:
+//   غير مسجّل → زر تسجيل دخول
+//   مسجّل بدون تقييم → نموذج النجوم
+//   مسجّل بتقييم سابق → يعرض تقييمه مع زر تعديل
+// ════════════════════════════════════════════════════════════════
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'

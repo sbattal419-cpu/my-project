@@ -1,3 +1,12 @@
+// ════════════════════════════════════════════════════════════════
+// FILE: src/pages/PublicRegistryPage.tsx
+// السجل العام — يعرض كل الحقوق المسجّلة (بدون تسجيل دخول)
+// للتعديل:
+//   بطاقة الحق  → ابحث عن RightCard
+//   فلتر النوع  → ابحث عن typeFilter
+//   البحث بالنص → ابحث عن query
+// البيانات: getAllRights() من Supabase (آخر 100 حق)
+// ════════════════════════════════════════════════════════════════
 import { useState, useEffect, useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { Link } from 'react-router-dom'
@@ -49,6 +58,8 @@ export default function PublicRegistryPage() {
       .finally(() => setLoading(false))
   }, [])
 
+  // filtered — يُحسَّب تلقائياً عند تغيير query أو typeFilter
+  // يُصفّي بالنوع أولاً ثم بنص البحث (العنوان أو صاحب الحق)
   const filtered = useMemo(() => {
     let list = rights
     if (typeFilter !== null) list = list.filter(r => r.ip_type === typeFilter)

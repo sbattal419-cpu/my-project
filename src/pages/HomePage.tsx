@@ -1,3 +1,9 @@
+// ════════════════════════════════════════════════════════════════
+// FILE: src/pages/HomePage.tsx
+// الصفحة الرئيسية — تجمع كل الأقسام بالترتيب:
+//   Navbar → Hero → Services → Statistics → HowItWorks → CTA → Rating → Footer
+// لإضافة قسم جديد: استورده وضعه هنا بالترتيب المناسب
+// ════════════════════════════════════════════════════════════════
 import Navbar from '../components/Navbar'
 import HeroSection from '../components/HeroSection'
 import ServicesSection from '../components/ServicesSection'

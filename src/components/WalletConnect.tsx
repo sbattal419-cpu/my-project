@@ -1,3 +1,14 @@
+// ════════════════════════════════════════════════════════════════
+// FILE: src/components/WalletConnect.tsx
+// مكوّن ربط/فصل محفظة Ethereum — يظهر بثلاث حالات:
+//   غير مربوطة  → زر "ربط المحفظة" + modal اختيار المحفظة
+//   شبكة خاطئة → زر "تبديل الشبكة" إلى Sepolia
+//   مربوطة      → عنوان المحفظة المختصر + زر فصل (اختياري)
+// Props:
+//   showDisconnect — إظهار زر قطع الاتصال (افتراضي: true)
+//   showHint       — إظهار تلميح توضيحي أسفل البطاقة
+// يُستخدم في: RegisterRightPage، CertificatesPage، Navbar
+// ════════════════════════════════════════════════════════════════
 import { useState, useEffect } from 'react'
 import { useWallet } from '../hooks/useWallet'
 import { useAuth } from '../context/AuthContext'

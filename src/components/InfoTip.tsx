@@ -1,3 +1,10 @@
+// ════════════════════════════════════════════════════════════════
+// FILE: src/components/InfoTip.tsx
+// أيقونة ℹ️ صغيرة — عند الضغط تُظهر بطاقة شرح للمصطلح
+// Props: term (اسم المصطلح) + explanation (الشرح) + size (حجم الأيقونة)
+// يُغلق تلقائياً عند النقر خارجه
+// يُستخدم في: RegisterRightPage، CertificatesPage، VerifyPage
+// ════════════════════════════════════════════════════════════════
 import { useState, useEffect, useRef } from 'react'
 
 interface Props {
