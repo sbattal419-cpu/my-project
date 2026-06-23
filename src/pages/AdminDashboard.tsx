@@ -1,3 +1,9 @@
+// ════════════════════════════════════════════════════════════════
+// FILE: src/pages/AdminDashboard.tsx
+// لوحة تحكم الأدمن — إدارة الحقوق والمستخدمين والتحقق من الهوية
+// للوصول: يجب أن يكون profiles.role = 'admin'
+// للتعديل: ابحث عن اسم القسم مثل: HANDLERS / JSX / KYC / RIGHTS / STATS
+// ════════════════════════════════════════════════════════════════
 import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
@@ -5,6 +11,9 @@ import { supabase } from '../lib/supabase'
 import { updateRightStatus, createNotification } from '../lib/supabase-ipr'
 import { signOut } from '../lib/auth'
 
+// ════════════════════════════════════════════════════════════════
+// SECTION: TYPES — أنواع البيانات
+// ════════════════════════════════════════════════════════════════
 interface Stats { rights: number; users: number; files: number }
 
 interface RightRow {
@@ -57,52 +66,65 @@ function StatusBadge({ status }: { status: string | null }) {
   return <span className="ip-badge" style={{ background: bg, color, fontSize: 12 }}>{label}</span>
 }
 
+// ════════════════════════════════════════════════════════════════
+// SECTION: MAIN COMPONENT
+// ════════════════════════════════════════════════════════════════
 export default function AdminDashboard() {
   const { user, loading } = useAuth()
   const navigate = useNavigate()
-  const [isAdmin, setIsAdmin] = useState(false)
-  const [checking, setChecking] = useState(true)
-  const [stats, setStats] = useState<Stats>({ rights: 0, users: 0, files: 0 })
-  const [rights, setRights] = useState<RightRow[]>([])
-  const [users, setUsers] = useState<UserRow[]>([])
-  const [activeTab, setActiveTab] = useState<'rights' | 'users' | 'kyc'>('rights')
+
+  // ── حالة صلاحية الأدمن ───────────────────────────────────────
+  const [isAdmin,  setIsAdmin]  = useState(false) // هل المستخدم أدمن؟
+  const [checking, setChecking] = useState(true)  // جاري فحص الصلاحية
+
+  // ── حالة البيانات ─────────────────────────────────────────────
+  const [stats,       setStats]       = useState<Stats>({ rights: 0, users: 0, files: 0 })
+  const [rights,      setRights]      = useState<RightRow[]>([])
+  const [users,       setUsers]       = useState<UserRow[]>([])
+  const [activeTab,   setActiveTab]   = useState<'rights' | 'users' | 'kyc'>('rights')
   const [dataLoading, setDataLoading] = useState(true)
 
-  // حالة المودال
-  const [rejectModal, setRejectModal] = useState<{ row: RightRow } | null>(null)
+  // ── حالة مودال رفض الحق ──────────────────────────────────────
+  const [rejectModal,  setRejectModal]  = useState<{ row: RightRow } | null>(null)
   const [rejectReason, setRejectReason] = useState(REJECT_REASONS[0])
   const [rejectCustom, setRejectCustom] = useState('')
-  const [actionLoading, setActionLoading] = useState<number | null>(null)
+  const [actionLoading, setActionLoading] = useState<number | null>(null) // id الصف الذي يُعالَج
   const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null)
 
-  // KYC
+  // ── حالة مودال رفض KYC ────────────────────────────────────────
   const [kycActionLoading, setKycActionLoading] = useState<number | null>(null)
-  const [kycRejectModal, setKycRejectModal] = useState<{ user: UserRow } | null>(null)
-  const [kycRejectNote, setKycRejectNote] = useState('')
+  const [kycRejectModal,   setKycRejectModal]   = useState<{ user: UserRow } | null>(null)
+  const [kycRejectNote,    setKycRejectNote]    = useState('')
 
+  // ── فحص صلاحية الأدمن من جدول profiles ──────────────────────
+  // يقرأ profiles.role للمستخدم الحالي → 'admin' يعطي صلاحية الوصول
+  // للتعديل: ابحث عن ADMIN CHECK
   useEffect(() => {
     if (loading) return
     if (!user) { setChecking(false); return }
     supabase
       .from('profiles')
       .select('role')
-      .eq('auth_user_id', user.id)
+      .eq('auth_user_id', user.id) // جلب صف المستخدم الحالي
       .single()
       .then(({ data }) => {
-        setIsAdmin(data?.role === 'admin')
+        setIsAdmin(data?.role === 'admin') // فقط role='admin' يُسمح له
         setChecking(false)
       })
   }, [user, loading])
 
+  // ── loadData — جلب كل بيانات لوحة التحكم دفعة واحدة ─────────
+  // يجلب: عدادات الإحصائيات + قائمة الحقوق + قائمة المستخدمين
+  // يُستدعى: عند تأكيد الصلاحية (isAdmin=true)
   const loadData = () => {
     setDataLoading(true)
     Promise.all([
-      supabase.from('Rights').select('*', { count: 'exact', head: true }),
-      supabase.from('profiles').select('*', { count: 'exact', head: true }),
-      supabase.from('Ip_files').select('*', { count: 'exact', head: true }),
+      supabase.from('Rights').select('*', { count: 'exact', head: true }),   // عدد الحقوق
+      supabase.from('profiles').select('*', { count: 'exact', head: true }), // عدد المستخدمين
+      supabase.from('Ip_files').select('*', { count: 'exact', head: true }), // عدد الملفات
       supabase.from('Rights')
         .select('id,auth_user_id,title,holder_name,ip_type,wallet_address,cert_id,tx_hash,created_at,status,review_note')
-        .order('created_at', { ascending: false }).limit(50),
+        .order('created_at', { ascending: false }).limit(50), // آخر 50 حق
       supabase.from('profiles').select('id,auth_user_id,full_name,email,role,created_at,national_id,id_document_url,kyc_status,kyc_note').order('created_at', { ascending: false }),
     ]).then(([r, u, f, rightsData, usersData]) => {
       setStats({ rights: r.count ?? 0, users: u.count ?? 0, files: f.count ?? 0 })
@@ -114,11 +136,20 @@ export default function AdminDashboard() {
 
   useEffect(() => { if (isAdmin) loadData() }, [isAdmin])
 
+  // showToast — يعرض رسالة نجاح/خطأ مؤقتة (3.5 ثانية)
   const showToast = (msg: string, ok: boolean) => {
     setToast({ msg, ok })
     setTimeout(() => setToast(null), 3500)
   }
 
+  // ════════════════════════════════════════════════════════════════
+  // SECTION: HANDLERS — معالجات أزرار القبول والرفض
+  // للتعديل: ابحث عن HANDLERS
+  // ════════════════════════════════════════════════════════════════
+
+  // handleApprove — قبول حق فكري وإرسال إشعار للمستخدم
+  // 1. updateRightStatus(id, 'approved') → يغيّر status في Rights
+  // 2. createNotification → يُنشئ إشعار نجاح للمستخدم
   const handleApprove = async (row: RightRow) => {
     if (!row.auth_user_id) return
     setActionLoading(row.id)
@@ -139,6 +170,8 @@ export default function AdminDashboard() {
     }
   }
 
+  // handleRejectConfirm — تأكيد رفض حق فكري مع سبب + إشعار
+  // يُستدعى من مودال الرفض عند الضغط على "تأكيد الرفض"
   const handleRejectConfirm = async () => {
     if (!rejectModal) return
     const { row } = rejectModal
@@ -165,6 +198,8 @@ export default function AdminDashboard() {
     }
   }
 
+  // handleKYCApprove — قبول طلب التحقق من الهوية (KYC)
+  // يحدّث profiles.kyc_status → 'verified' ويُرسل إشعار للمستخدم
   const handleKYCApprove = async (u: UserRow) => {
     setKycActionLoading(u.id)
     try {
@@ -186,6 +221,8 @@ export default function AdminDashboard() {
     }
   }
 
+  // handleKYCRejectConfirm — رفض طلب KYC مع ملاحظة + إشعار
+  // يُستدعى من مودال رفض KYC عند الضغط على "تأكيد الرفض"
   const handleKYCRejectConfirm = async () => {
     if (!kycRejectModal) return
     const u = kycRejectModal.user
@@ -540,6 +577,11 @@ export default function AdminDashboard() {
   )
 }
 
+// ════════════════════════════════════════════════════════════════
+// SECTION: STAT CARD — بطاقة الإحصائية القابلة للنقر
+// للتعديل: ابحث عن STAT CARD
+// إذا كان onClick موجوداً → تُضاف كلاسة adm-stat-card-link + سهم
+// ════════════════════════════════════════════════════════════════
 function StatCard({ icon, label, value, color, onClick }: { icon: string; label: string; value: number; color: string; onClick?: () => void }) {
   return (
     <div className={`adm-stat-card${onClick ? ' adm-stat-card-link' : ''}`} onClick={onClick} role={onClick ? 'button' : undefined}>

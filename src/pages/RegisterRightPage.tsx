@@ -1,3 +1,6 @@
+// ════════════════════════════════════════════════════════════════
+// SECTION: IMPORTS
+// ════════════════════════════════════════════════════════════════
 import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Link } from 'react-router-dom'
@@ -14,33 +17,40 @@ import { submitKYC, getKYCStatus } from '../lib/auth'
 
 const EASE = 'easeOut' as const
 
+// ════════════════════════════════════════════════════════════════
+// SECTION: TYPES
+// Step: مراحل التسجيل (form → confirm → success)
+// FormData: حقول النموذج — تتغير حسب نوع الحق (ipType)
+// Result: نتيجة التسجيل على البلوكشين
+// ════════════════════════════════════════════════════════════════
 type Step = 'form' | 'confirm' | 'success'
 
 interface FormData {
   title: string
-  ipType: number
+  ipType: number        // 0=حق مؤلف  1=علامة تجارية  2=براءة اختراع
   description: string
   holderName: string
   holderEmail: string
-  // copyright (0)
+  // ── حقل مؤلف (ipType=0) ──
   workType: string
   publicationDate: string
-  // trademark (1)
+  // ── علامة تجارية (ipType=1) ──
   niceClass: string
   logoDescription: string
-  // patent (2)
+  // ── براءة اختراع (ipType=2) ──
   technicalField: string
   inventors: string
   claims: string
 }
 
 interface Result {
-  certId: string
-  txHash: string
-  documentHash: string
-  blockNumber: number
+  certId: string        // رقم الشهادة على البلوكشين
+  txHash: string        // هاش المعاملة على Ethereum
+  documentHash: string  // SHA-256 للملف المرفق
+  blockNumber: number   // رقم الكتلة التي سُجّل فيها
 }
 
+// ── مكوّن نقطة الخطوة في شريط التقدم ──────────────────────────
 function StepDot({ num, label, active, done }: { num: number; label: string; active: boolean; done: boolean }) {
   return (
     <div className={`bc-step-dot${active ? ' bc-step-active' : ''}${done ? ' bc-step-done' : ''}`}>
@@ -54,10 +64,13 @@ function StepDot({ num, label, active, done }: { num: number; label: string; act
   )
 }
 
+// ════════════════════════════════════════════════════════════════
+// SECTION: MAIN COMPONENT
+// ════════════════════════════════════════════════════════════════
 export default function RegisterRightPage() {
-  const wallet = useWallet()
-  const { user } = useAuth()
-  const { t, lang } = useLang()
+  const wallet = useWallet()   // حالة المحفظة (عنوان، اتصال، الشبكة)
+  const { user } = useAuth()   // المستخدم الحالي من Supabase Auth
+  const { t, lang } = useLang() // الترجمة واللغة الحالية
 
   // تبديل تلقائي لشبكة Sepolia إذا كانت المحفظة مربوطة على شبكة خاطئة
   useEffect(() => {
@@ -66,17 +79,20 @@ export default function RegisterRightPage() {
     }
   }, [wallet.isConnected, wallet.isSepolia])
 
-  // ── KYC gate ──────────────────────────────────────────────────────────────
-  const [kycStatusVal,  setKycStatusVal]  = useState<string | null>(null)
-  const [kycCheckDone,  setKycCheckDone]  = useState(false)
-  const [kycFile,       setKycFile]       = useState<File | null>(null)
-  const [kycPreview,    setKycPreview]    = useState<string | null>(null)
-  const [kycLoading,    setKycLoading]    = useState(false)
-  const [kycError,      setKycError]      = useState<string | null>(null)
-  const [kycNationalId, setKycNationalId] = useState('')
-  const kycInputRef = useRef<HTMLInputElement>(null)
+  // ════════════════════════════════════════════════════════════════
+  // SECTION: KYC GATE — التحقق من الهوية قبل السماح بالتسجيل
+  // للتعديل: ابحث عن KYC GATE
+  // ════════════════════════════════════════════════════════════════
+  const [kycStatusVal,  setKycStatusVal]  = useState<string | null>(null) // 'none' | 'pending' | 'verified' | 'rejected'
+  const [kycCheckDone,  setKycCheckDone]  = useState(false)               // هل انتهى التحقق من DB
+  const [kycFile,       setKycFile]       = useState<File | null>(null)   // ملف الهوية المرفوع
+  const [kycPreview,    setKycPreview]    = useState<string | null>(null) // معاينة الصورة
+  const [kycLoading,    setKycLoading]    = useState(false)               // جاري إرسال KYC
+  const [kycError,      setKycError]      = useState<string | null>(null) // رسالة خطأ KYC
+  const [kycNationalId, setKycNationalId] = useState('')                  // رقم الهوية الوطنية
+  const kycInputRef = useRef<HTMLInputElement>(null)                      // مرجع input رفع الهوية
 
-  // تحميل حالة KYC من قاعدة البيانات
+  // جلب حالة KYC من جدول profiles في Supabase
   useEffect(() => {
     if (!user) return
     getKYCStatus().then(data => {
@@ -88,24 +104,26 @@ export default function RegisterRightPage() {
     })
   }, [user])
 
+  // handleKycFile — التحقق من حجم الملف وتخزينه ومعاينته
   const handleKycFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0]
     if (!f) return
     if (f.size > 10 * 1024 * 1024) { setKycError(lang === 'ar' ? 'حجم الملف يجب أن يكون أقل من 10 ميغابايت' : 'File must be under 10 MB'); return }
     setKycFile(f)
     setKycError(null)
-    if (f.type.startsWith('image/')) setKycPreview(URL.createObjectURL(f))
+    if (f.type.startsWith('image/')) setKycPreview(URL.createObjectURL(f)) // معاينة فقط للصور
     else setKycPreview(null)
   }
 
+  // handleKycSubmit — رفع ملف الهوية والرقم الوطني إلى Supabase Storage + profiles
   const handleKycSubmit = async () => {
     if (!kycFile || !user) return
     if (!kycNationalId.trim()) { setKycError(lang === 'ar' ? 'يرجى إدخال رقم الهوية الوطنية' : 'Please enter your national ID number'); return }
     setKycLoading(true)
     setKycError(null)
     try {
-      await submitKYC(kycNationalId, kycFile)
-      setKycStatusVal('pending')
+      await submitKYC(kycNationalId, kycFile) // → src/lib/auth.ts → submitKYC
+      setKycStatusVal('pending')              // تحويل الواجهة لشاشة "قيد المراجعة"
     } catch {
       setKycError(lang === 'ar' ? 'فشل الإرسال، يرجى المحاولة مرة أخرى' : 'Submission failed, please try again')
     } finally {
@@ -113,7 +131,7 @@ export default function RegisterRightPage() {
     }
   }
 
-  // انتظار تحميل حالة KYC
+  // ── انتظار تحميل حالة KYC من DB ────────────────────────────
   if (!kycCheckDone) {
     return (
       <div className="kyc-page">
@@ -125,7 +143,7 @@ export default function RegisterRightPage() {
     )
   }
 
-  // إذا كانت الهوية معلقة للمراجعة
+  // ── شاشة: الهوية قيد المراجعة ──────────────────────────────
   if (kycStatusVal === 'pending') {
     return (
       <div className="kyc-page">
@@ -150,7 +168,7 @@ export default function RegisterRightPage() {
     )
   }
 
-  // إذا لم تكن الهوية موثّقة (none أو rejected)
+  // ── شاشة: نموذج رفع الهوية (none أو rejected) ──────────────
   if (kycStatusVal !== 'verified') {
     return (
       <div className="kyc-page">
@@ -161,7 +179,6 @@ export default function RegisterRightPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.45, ease: EASE }}
         >
-          {/* header */}
           <div className="kyc-header">
             <div className="kyc-shield">
               <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -177,7 +194,7 @@ export default function RegisterRightPage() {
             </p>
           </div>
 
-          {/* rejected notice */}
+          {/* إشعار الرفض السابق */}
           {kycStatusVal === 'rejected' && (
             <div className="kyc-rejected-notice">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -187,7 +204,7 @@ export default function RegisterRightPage() {
             </div>
           )}
 
-          {/* what's accepted */}
+          {/* أنواع الوثائق المقبولة */}
           <div className="kyc-accepted">
             {[
               { icon: '🪪', label: lang === 'ar' ? 'بطاقة هوية وطنية' : 'National ID Card' },
@@ -201,7 +218,7 @@ export default function RegisterRightPage() {
             ))}
           </div>
 
-          {/* national ID number */}
+          {/* حقل رقم الهوية الوطنية */}
           <div className="kyc-field-wrap">
             <label className="kyc-field-label">{lang === 'ar' ? 'رقم الهوية الوطنية' : 'National ID Number'}</label>
             <input
@@ -215,7 +232,7 @@ export default function RegisterRightPage() {
             />
           </div>
 
-          {/* upload zone */}
+          {/* منطقة رفع صورة الهوية */}
           <input ref={kycInputRef} type="file" hidden accept="image/*,.pdf" onChange={handleKycFile} />
           <button
             type="button"
@@ -240,7 +257,6 @@ export default function RegisterRightPage() {
 
           {kycError && <p className="kyc-error">{kycError}</p>}
 
-          {/* privacy note */}
           <div className="kyc-privacy">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
             <span>
@@ -250,6 +266,7 @@ export default function RegisterRightPage() {
             </span>
           </div>
 
+          {/* زر الإرسال — معطّل حتى يُرفع ملف ويُدخل رقم الهوية */}
           <button
             className="kyc-submit-btn"
             disabled={!kycFile || !kycNationalId.trim() || kycLoading}
@@ -267,7 +284,11 @@ export default function RegisterRightPage() {
     )
   }
 
-  const [step, setStep] = useState<Step>('form')
+  // ════════════════════════════════════════════════════════════════
+  // SECTION: MAIN FORM — يظهر فقط إذا kycStatusVal === 'verified'
+  // للتعديل: ابحث عن MAIN FORM
+  // ════════════════════════════════════════════════════════════════
+  const [step, setStep] = useState<Step>('form')         // المرحلة الحالية
   const [form, setForm] = useState<FormData>({
     title: '', ipType: 0, description: '', holderName: '', holderEmail: '',
     workType: '', publicationDate: '',
@@ -275,6 +296,7 @@ export default function RegisterRightPage() {
     technicalField: '', inventors: '', claims: '',
   })
 
+  // ملء اسم وإيميل المستخدم تلقائياً من بيانات الحساب
   useEffect(() => {
     const savedName = user?.user_metadata?.full_name as string | undefined
     const savedEmail = user?.email as string | undefined
@@ -285,6 +307,8 @@ export default function RegisterRightPage() {
     }))
   }, [user])
 
+  // buildExtraFields — يبني كائن الحقول الإضافية حسب نوع الحق
+  // يُستخدم عند حفظ الشهادة في Supabase → saveCertToSupabase
   const buildExtraFields = (): ExtraFields | undefined => {
     if (form.ipType === 0) {
       const ef = { work_type: form.workType || undefined, publication_date: form.publicationDate || undefined }
@@ -301,6 +325,8 @@ export default function RegisterRightPage() {
     return undefined
   }
 
+  // isFormValid — التحقق من اكتمال النموذج قبل السماح بالانتقال
+  // يتحقق من: العنوان + صاحب الحق + الهاش + الحقول الخاصة بكل نوع
   const isFormValid = (): boolean => {
     const base = form.title.trim() && form.holderName.trim()
     if (!base) return false
@@ -310,15 +336,26 @@ export default function RegisterRightPage() {
     if (form.ipType === 2) return !!(form.technicalField.trim() && form.inventors.trim() && form.claims.trim())
     return true
   }
-  const [processing, setProcessing] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [result, setResult] = useState<Result | null>(null)
-  const [file, setFile] = useState<File | null>(null)
-  const [fileHash, setFileHash] = useState<string | null>(null)
-  const [pHash,    setPHash]    = useState<string | null>(null)
-  const [hashing,  setHashing]  = useState(false)
-  const [checking, setChecking] = useState(false)
 
+  // ── حالة المعالجة والنتيجة ────────────────────────────────────
+  const [processing, setProcessing] = useState(false)      // جاري التسجيل على البلوكشين
+  const [error, setError]           = useState<string | null>(null)
+  const [result, setResult]         = useState<Result | null>(null) // نتيجة التسجيل الناجح
+  const [file, setFile]             = useState<File | null>(null)   // الملف المرفوع
+  const [fileHash, setFileHash]     = useState<string | null>(null) // SHA-256 للملف
+  const [pHash,    setPHash]        = useState<string | null>(null) // Perceptual Hash للصور
+  const [hashing,  setHashing]      = useState(false)               // جاري حساب الهاش
+  const [checking, setChecking]     = useState(false)               // جاري فحص التكرار
+
+  // ════════════════════════════════════════════════════════════════
+  // SECTION: HANDLERS — وظائف التعامل مع الأحداث
+  // للتعديل: ابحث عن HANDLERS
+  // ════════════════════════════════════════════════════════════════
+
+  // handleFileChange — يُشغَّل عند اختيار ملف
+  // 1. يتحقق من الحجم (max 50MB)
+  // 2. يحسب SHA-256 (fileHash) — لمنع التكرار الدقيق
+  // 3. يحسب Perceptual Hash (pHash) — لمنع التكرار البصري للصور
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = e.target.files?.[0]
     if (!selected) return
@@ -330,8 +367,8 @@ export default function RegisterRightPage() {
     setHashing(true)
     try {
       const [sha, ph] = await Promise.all([
-        hashFile(selected),
-        computePerceptualHash(selected),
+        hashFile(selected),             // SHA-256 → src/lib/blockchain.ts → hashFile
+        computePerceptualHash(selected), // pHash  → src/lib/blockchain.ts → computePerceptualHash
       ])
       setFileHash(sha)
       setPHash(ph)
@@ -340,13 +377,17 @@ export default function RegisterRightPage() {
     }
   }
 
+  // handleFormSubmit — يُشغَّل عند الضغط على "التالي" في المرحلة الأولى
+  // يفحص التكرار البصري (pHash) قبل الانتقال لمرحلة التأكيد
+  // إذا وُجد تكرار → يعرض رسالة خطأ ويوقف العملية
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!pHash) { setStep('confirm'); return }
+    if (!pHash) { setStep('confirm'); return } // لا صورة = لا فحص بصري
     setChecking(true)
     setError(null)
     try {
       const { isDuplicate, similarTitle, similarHolder } = await checkPerceptualDuplicate(pHash)
+      // checkPerceptualDuplicate → src/lib/supabase-ipr.ts
       if (isDuplicate) {
         setError(
           lang === 'ar'
@@ -355,19 +396,25 @@ export default function RegisterRightPage() {
         )
         return
       }
-      setStep('confirm')
+      setStep('confirm') // انتقل لمرحلة المراجعة والتأكيد
     } catch {
-      setStep('confirm')
+      setStep('confirm') // في حال فشل الفحص — اسمح بالمتابعة
     } finally {
       setChecking(false)
     }
   }
 
+  // handleRegister — الوظيفة الرئيسية: تسجيل الحق على البلوكشين ثم في Supabase
+  // الخطوات:
+  // 1. registerIPOnChain → يرسل المعاملة لعقد Ethereum Sepolia
+  // 2. saveCertToSupabase → يحفظ الشهادة في جدول Rights
+  // 3. uploadIPFile → يرفع الملف لـ Supabase Storage
   const handleRegister = async () => {
     if (!wallet.isConnected || !wallet.isSepolia) return
     setProcessing(true)
     setError(null)
     try {
+      // الخطوة 1: التسجيل على البلوكشين → src/lib/blockchain.ts → registerIPOnChain
       const res = await registerIPOnChain({
         title: form.title,
         ipType: form.ipType,
@@ -379,6 +426,7 @@ export default function RegisterRightPage() {
 
       if (user) {
         try {
+          // الخطوة 2: حفظ الشهادة في Supabase → src/lib/supabase-ipr.ts → saveCertToSupabase
           await saveCertToSupabase({
             userId:         user.id,
             walletAddress:  wallet.address!,
@@ -392,6 +440,7 @@ export default function RegisterRightPage() {
             result:         res,
           })
           if (file) {
+            // الخطوة 3: رفع الملف لـ Storage → src/lib/supabase-ipr.ts → uploadIPFile
             try { await uploadIPFile(file, res.certId) } catch (e) { console.error('File upload error:', e) }
           }
         } catch (sbErr) {
@@ -400,15 +449,16 @@ export default function RegisterRightPage() {
       }
 
       setResult(res)
-      playSuccess()
+      playSuccess()        // صوت نجاح → src/lib/sounds.ts
       setStep('success')
     } catch (err) {
       const msg = (err as Error).message ?? ''
-      playError()
+      playError()          // صوت خطأ → src/lib/sounds.ts
+      // ── ترجمة رسائل خطأ MetaMask / البلوكشين ──
       if (msg.toLowerCase().includes('user rejected') || msg.toLowerCase().includes('rejected')) {
-        setError(t('rr.err.rejected'))
+        setError(t('rr.err.rejected'))   // رفض المستخدم المعاملة في MetaMask
       } else if (msg.toLowerCase().includes('already registered') || msg.toLowerCase().includes('execution reverted')) {
-        setError(t('rr.err.duplicate'))
+        setError(t('rr.err.duplicate'))  // الهاش موجود مسبقاً في العقد الذكي
       } else {
         setError(t('rr.err.failed'))
       }
@@ -417,8 +467,12 @@ export default function RegisterRightPage() {
     }
   }
 
-  const ipTypeInfo = IP_TYPES[form.ipType]
+  const ipTypeInfo = IP_TYPES[form.ipType] // معلومات نوع الحق الحالي (لون، تسمية)
 
+  // ════════════════════════════════════════════════════════════════
+  // SECTION: JSX — واجهة المستخدم
+  // للتعديل: ابحث عن JSX
+  // ════════════════════════════════════════════════════════════════
   return (
     <div className="bc-page">
       <header className="bc-topbar">
@@ -441,7 +495,7 @@ export default function RegisterRightPage() {
         <WalletConnect showDisconnect={false} />
       </header>
 
-      {/* ── Motivational banner ── */}
+      {/* ── بانر تحفيزي علوي ── */}
       <motion.div
         className="rr-motivate"
         initial={{ opacity: 0, y: -16 }}
@@ -450,7 +504,6 @@ export default function RegisterRightPage() {
       >
         <div className="rr-motivate-bg" />
         <div className="rr-motivate-inner">
-          {/* Left: text */}
           <div className="rr-motivate-text">
             <div className="rr-motivate-badge">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -490,7 +543,7 @@ export default function RegisterRightPage() {
             </div>
           </div>
 
-          {/* Right: stat cards */}
+          {/* بطاقات الإحصائيات */}
           <div className="rr-motivate-stats">
             {[
               { num: '+10K', label: 'حق مسجّل موثّق' },
@@ -513,7 +566,7 @@ export default function RegisterRightPage() {
       </motion.div>
 
       <div className="rr-content-split">
-        {/* ── Illustration panel ── */}
+        {/* ── عمود الرسم التوضيحي ── */}
         <div className="rr-illus-col">
           <ProtectionIllustration />
           <div className="rr-illus-label">
@@ -522,14 +575,16 @@ export default function RegisterRightPage() {
           </div>
         </div>
 
-        {/* ── Form panel ── */}
+        {/* ── عمود النموذج الرئيسي ── */}
         <main className="bc-main">
+        {/* تحذير إذا لم يُنشر العقد الذكي بعد */}
         {!isContractDeployed() && (
           <div className="bc-alert bc-alert-warn bc-deploy-warn">
             {t('rr.err.failed')}
           </div>
         )}
 
+        {/* شريط تقدم الخطوات الثلاث */}
         <div className="bc-steps-bar">
           <StepDot num={1} label={t('rr.step1')} active={step === 'form'} done={step !== 'form'} />
           <div className={`bc-step-connector${step !== 'form' ? ' bc-connector-done' : ''}`} />
@@ -539,6 +594,11 @@ export default function RegisterRightPage() {
         </div>
 
         <AnimatePresence mode="wait">
+
+          {/* ════════════════════════════════════════════════════════
+              STEP 1: FORM — نموذج إدخال البيانات
+              للتعديل: ابحث عن STEP 1
+              ════════════════════════════════════════════════════════ */}
           {step === 'form' && (
             <motion.div
               key="form"
@@ -553,7 +613,7 @@ export default function RegisterRightPage() {
 
               <form className="bc-form" onSubmit={handleFormSubmit}>
 
-                {/* ── اختيار النوع ── */}
+                {/* اختيار نوع الحق الفكري: 0=مؤلف  1=علامة  2=اختراع */}
                 <div className="bc-form-group">
                   <label className="bc-label">{t('rr.ip.type')}</label>
                   <div className="ip-type-grid">
@@ -563,6 +623,7 @@ export default function RegisterRightPage() {
                         type="button"
                         className={`ip-type-btn${form.ipType === tp.value ? ' ip-type-selected' : ''}`}
                         style={{ '--type-color': tp.color, '--type-bg': tp.bg } as React.CSSProperties}
+                        // عند تغيير النوع: إعادة تعيين جميع الحقول الخاصة بالنوع
                         onClick={() => setForm(f => ({ ...f, ipType: tp.value, title: '', description: '', workType: '', niceClass: '', logoDescription: '', technicalField: '', inventors: '', claims: '' }))}
                       >
                         {t(tp.labelKey)}
@@ -571,7 +632,7 @@ export default function RegisterRightPage() {
                   </div>
                 </div>
 
-                {/* ── مشترك: اسم صاحب الحق + البريد ── */}
+                {/* حقول مشتركة لجميع الأنواع */}
                 <div className="bc-form-row-2">
                   <div className="bc-form-group">
                     <label className="bc-label">{t('rr.f.holder')} <span className="bc-required">*</span></label>
@@ -585,7 +646,7 @@ export default function RegisterRightPage() {
                   </div>
                 </div>
 
-                {/* ══ حقوق النشر (0) ══ */}
+                {/* ── حقول حق المؤلف (ipType=0) ── */}
                 {form.ipType === 0 && (
                   <AnimatePresence mode="wait">
                     <motion.div key="form-0" className="bc-type-fields"
@@ -629,7 +690,7 @@ export default function RegisterRightPage() {
                   </AnimatePresence>
                 )}
 
-                {/* ══ العلامات التجارية (1) ══ */}
+                {/* ── حقول العلامة التجارية (ipType=1) ── */}
                 {form.ipType === 1 && (
                   <AnimatePresence mode="wait">
                     <motion.div key="form-1" className="bc-type-fields"
@@ -668,7 +729,7 @@ export default function RegisterRightPage() {
                   </AnimatePresence>
                 )}
 
-                {/* ══ براءات الاختراع (2) ══ */}
+                {/* ── حقول براءة الاختراع (ipType=2) ── */}
                 {form.ipType === 2 && (
                   <AnimatePresence mode="wait">
                     <motion.div key="form-2" className="bc-type-fields"
@@ -716,7 +777,7 @@ export default function RegisterRightPage() {
                   </AnimatePresence>
                 )}
 
-                {/* ── رفع الملف (مشترك) ── */}
+                {/* ── رفع الملف المراد حمايته (مشترك لجميع الأنواع) ── */}
                 <div className="bc-form-group">
                   <label className="bc-label">
                     {form.ipType === 1 ? 'صورة الشعار' : form.ipType === 2 ? 'الملفات التقنية' : 'الملف المراد حمايته'}
@@ -763,6 +824,7 @@ export default function RegisterRightPage() {
                   </label>
                 </div>
 
+                {/* رسالة خطأ التكرار أو الفشل */}
                 {error && (
                   <div className="bc-duplicate-alert">
                     <div className="bc-duplicate-icon">
@@ -779,6 +841,7 @@ export default function RegisterRightPage() {
                   </div>
                 )}
 
+                {/* زر التالي — معطّل حتى تكتمل شروط isFormValid */}
                 <button
                   type="submit"
                   className="btn-bc-primary"
@@ -797,6 +860,10 @@ export default function RegisterRightPage() {
             </motion.div>
           )}
 
+          {/* ════════════════════════════════════════════════════════
+              STEP 2: CONFIRM — مراجعة البيانات وتأكيد التسجيل
+              للتعديل: ابحث عن STEP 2
+              ════════════════════════════════════════════════════════ */}
           {step === 'confirm' && (
             <motion.div
               key="confirm"
@@ -865,6 +932,7 @@ export default function RegisterRightPage() {
                   </svg>
                   {t('rr.prev')}
                 </button>
+                {/* زر التسجيل النهائي — يستدعي handleRegister */}
                 <button
                   className="btn-bc-primary"
                   onClick={handleRegister}
@@ -878,6 +946,10 @@ export default function RegisterRightPage() {
             </motion.div>
           )}
 
+          {/* ════════════════════════════════════════════════════════
+              STEP 3: SUCCESS — عرض نتيجة التسجيل الناجح
+              للتعديل: ابحث عن STEP 3
+              ════════════════════════════════════════════════════════ */}
           {step === 'success' && result && (
             <motion.div
               key="success"
@@ -894,6 +966,7 @@ export default function RegisterRightPage() {
               <h1 className="bc-success-title">{t('rr.success.title')}</h1>
               <p className="bc-card-desc">{t('rr.success.desc')}</p>
 
+              {/* بيانات الشهادة المُسجَّلة */}
               <div className="bc-cert-result-box">
                 <div className="bc-cert-row-item">
                   <span className="bc-cert-rkey">
@@ -907,6 +980,7 @@ export default function RegisterRightPage() {
                     {t('rr.result.tx')}
                     <InfoTip term="هاش المعاملة (TX Hash)" explanation="رقم إيصال معاملتك على البلوكشين. يمكنك من خلاله التحقق من تسجيل حقك على Etherscan في أي وقت ومن أي مكان." />
                   </span>
+                  {/* رابط لعرض المعاملة على Etherscan */}
                   <a
                     className="bc-cert-rval bc-hash-link"
                     href={`${BLOCKCHAIN.EXPLORER}/tx/${result.txHash}`}
@@ -945,15 +1019,16 @@ export default function RegisterRightPage() {
   )
 }
 
-/* ── Protection Illustration ── */
+/* ════════════════════════════════════════════════════════════════
+   SECTION: PROTECTION ILLUSTRATION — الرسم التوضيحي الجانبي (SVG)
+   للتعديل: ابحث عن PROTECTION ILLUSTRATION
+   ════════════════════════════════════════════════════════════════ */
 function ProtectionIllustration() {
   return (
     <svg width="300" height="420" viewBox="0 0 300 420" fill="none" xmlns="http://www.w3.org/2000/svg">
 
-      {/* Ground shadow */}
       <ellipse cx="150" cy="400" rx="78" ry="11" fill="rgba(37,99,235,0.13)" />
 
-      {/* Outer shield glow aura */}
       <motion.path
         d="M150 30 L252 76 L252 208 C252 278 150 320 150 320 C150 320 48 278 48 208 L48 76 Z"
         fill="rgba(37,99,235,0.07)"
@@ -962,7 +1037,6 @@ function ProtectionIllustration() {
         animate={{ opacity: [0.7, 1, 0.7] }}
         transition={{ duration: 2.8, repeat: Infinity, ease: 'easeInOut' }}
       />
-      {/* Inner shield dashed */}
       <path
         d="M150 52 L230 90 L230 200 C230 256 150 293 150 293 C150 293 70 256 70 200 L70 90 Z"
         fill="rgba(37,99,235,0.09)"
@@ -971,8 +1045,6 @@ function ProtectionIllustration() {
         strokeDasharray="5 3"
       />
 
-      {/* ── Person figure ── */}
-      {/* Head */}
       <motion.circle
         cx="150" cy="116" r="32"
         fill="url(#hGrad)"
@@ -981,10 +1053,8 @@ function ProtectionIllustration() {
         animate={{ scale: [1, 1.015, 1] }}
         transition={{ duration: 3.5, repeat: Infinity, ease: 'easeInOut' }}
       />
-      {/* Head shine */}
       <ellipse cx="139" cy="105" rx="9" ry="6" fill="rgba(255,255,255,0.18)" transform="rotate(-20 139 105)" />
 
-      {/* Body */}
       <motion.path
         d="M113 152 C105 152 99 159 99 168 L99 245 C99 253 105 260 113 260 L187 260 C195 260 201 253 201 245 L201 168 C201 159 195 152 187 152 Z"
         fill="url(#bGrad)"
@@ -992,7 +1062,6 @@ function ProtectionIllustration() {
         transition={{ duration: 3.5, repeat: Infinity, ease: 'easeInOut' }}
       />
 
-      {/* Right arm */}
       <motion.path
         d="M196 183 Q228 190 248 207"
         stroke="url(#aGradR)"
@@ -1002,7 +1071,6 @@ function ProtectionIllustration() {
         animate={{ d: ['M196 183 Q228 190 248 207', 'M196 183 Q228 188 248 203', 'M196 183 Q228 190 248 207'] }}
         transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
       />
-      {/* Left arm */}
       <motion.path
         d="M104 183 Q72 190 52 207"
         stroke="url(#aGradL)"
@@ -1013,55 +1081,31 @@ function ProtectionIllustration() {
         transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut', delay: 0.15 }}
       />
 
-      {/* Right hand glow */}
-      <motion.circle
-        cx="252" cy="210" r="14"
-        fill="rgba(37,99,235,0.6)"
-        stroke="rgba(96,165,250,0.75)"
-        strokeWidth="1.5"
-        animate={{ r: [14, 17, 14], opacity: [0.75, 1, 0.75] }}
-        transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}
-      />
-      {/* Left hand glow */}
-      <motion.circle
-        cx="48" cy="210" r="14"
-        fill="rgba(37,99,235,0.6)"
-        stroke="rgba(96,165,250,0.75)"
-        strokeWidth="1.5"
-        animate={{ r: [14, 17, 14], opacity: [0.75, 1, 0.75] }}
-        transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut', delay: 0.3 }}
-      />
+      <motion.circle cx="252" cy="210" r="14" fill="rgba(37,99,235,0.6)" stroke="rgba(96,165,250,0.75)" strokeWidth="1.5"
+        animate={{ r: [14, 17, 14], opacity: [0.75, 1, 0.75] }} transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }} />
+      <motion.circle cx="48" cy="210" r="14" fill="rgba(37,99,235,0.6)" stroke="rgba(96,165,250,0.75)" strokeWidth="1.5"
+        animate={{ r: [14, 17, 14], opacity: [0.75, 1, 0.75] }} transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut', delay: 0.3 }} />
 
-      {/* Legs */}
       <rect x="112" y="259" width="28" height="54" rx="9" fill="url(#lGrad)" />
       <rect x="160" y="259" width="28" height="54" rx="9" fill="url(#lGrad)" />
 
-      {/* Lock icon on chest */}
       <rect x="130" y="188" width="40" height="34" rx="7" fill="rgba(37,99,235,0.88)" stroke="rgba(96,165,250,0.65)" strokeWidth="1.5" />
       <path d="M141 188 L141 178 C141 168 159 168 159 178 L159 188" fill="none" stroke="#60a5fa" strokeWidth="2.5" strokeLinecap="round" />
       <circle cx="150" cy="205" r="5" fill="rgba(255,255,255,0.9)" />
       <rect x="148" y="205" width="4" height="9" rx="2" fill="rgba(255,255,255,0.9)" />
 
-      {/* ── Floating IP badges ── */}
-      {/* © top-left */}
       <motion.g animate={{ y: [-8, 8, -8] }} transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}>
         <circle cx="28" cy="90" r="22" fill="rgba(37,99,235,0.18)" stroke="rgba(96,165,250,0.55)" strokeWidth="1.5" />
         <text x="28" y="98" textAnchor="middle" fill="#93c5fd" fontSize="20" fontWeight="700" fontFamily="serif">©</text>
       </motion.g>
-
-      {/* ® top-right */}
       <motion.g animate={{ y: [7, -7, 7] }} transition={{ duration: 3.6, repeat: Infinity, ease: 'easeInOut', delay: 0.6 }}>
         <circle cx="273" cy="78" r="19" fill="rgba(139,92,246,0.18)" stroke="rgba(167,139,250,0.55)" strokeWidth="1.5" />
         <text x="273" y="85" textAnchor="middle" fill="#c4b5fd" fontSize="16" fontWeight="700" fontFamily="serif">®</text>
       </motion.g>
-
-      {/* ™ right side */}
       <motion.g animate={{ y: [-5, 5, -5] }} transition={{ duration: 4.8, repeat: Infinity, ease: 'easeInOut', delay: 1 }}>
         <circle cx="282" cy="178" r="16" fill="rgba(37,99,235,0.14)" stroke="rgba(96,165,250,0.42)" strokeWidth="1.2" />
         <text x="282" y="184" textAnchor="middle" fill="#93c5fd" fontSize="12" fontWeight="700" fontFamily="serif">™</text>
       </motion.g>
-
-      {/* Document / patent left */}
       <motion.g animate={{ y: [4, -4, 4] }} transition={{ duration: 5.2, repeat: Infinity, ease: 'easeInOut', delay: 0.9 }}>
         <rect x="8" y="155" width="36" height="48" rx="5" fill="rgba(37,99,235,0.14)" stroke="rgba(96,165,250,0.4)" strokeWidth="1.2" />
         <rect x="14" y="167" width="24" height="3" rx="1.5" fill="rgba(255,255,255,0.28)" />
@@ -1070,53 +1114,37 @@ function ProtectionIllustration() {
         <rect x="14" y="188" width="20" height="3" rx="1.5" fill="rgba(255,255,255,0.14)" />
       </motion.g>
 
-      {/* ── Check badge bottom ── */}
-      <motion.g
-        initial={{ scale: 0, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        transition={{ duration: 0.55, delay: 1.1, ease: 'backOut' }}
-      >
+      <motion.g initial={{ scale: 0, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ duration: 0.55, delay: 1.1, ease: 'backOut' }}>
         <circle cx="150" cy="366" r="24" fill="rgba(34,197,94,0.15)" stroke="rgba(34,197,94,0.48)" strokeWidth="1.5" />
         <path d="M139 366 L147 374 L162 356" stroke="#22c55e" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
       </motion.g>
 
-      {/* ── Particles ── */}
       <motion.circle cx="118" cy="50" r="3.5" fill="rgba(96,165,250,0.45)"
-        animate={{ y: [-14, 0, -14], opacity: [0.35, 0.85, 0.35] }}
-        transition={{ duration: 4.2, repeat: Infinity, ease: 'easeInOut', delay: 0.2 }} />
+        animate={{ y: [-14, 0, -14], opacity: [0.35, 0.85, 0.35] }} transition={{ duration: 4.2, repeat: Infinity, ease: 'easeInOut', delay: 0.2 }} />
       <motion.circle cx="188" cy="38" r="2.5" fill="rgba(167,139,250,0.4)"
-        animate={{ y: [-10, 4, -10], opacity: [0.3, 0.75, 0.3] }}
-        transition={{ duration: 3.8, repeat: Infinity, ease: 'easeInOut', delay: 1.1 }} />
+        animate={{ y: [-10, 4, -10], opacity: [0.3, 0.75, 0.3] }} transition={{ duration: 3.8, repeat: Infinity, ease: 'easeInOut', delay: 1.1 }} />
       <motion.circle cx="68" cy="310" r="3" fill="rgba(96,165,250,0.35)"
-        animate={{ y: [-7, 7, -7], opacity: [0.25, 0.65, 0.25] }}
-        transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut', delay: 0.7 }} />
+        animate={{ y: [-7, 7, -7], opacity: [0.25, 0.65, 0.25] }} transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut', delay: 0.7 }} />
       <motion.circle cx="238" cy="320" r="2.5" fill="rgba(167,139,250,0.35)"
-        animate={{ y: [5, -5, 5], opacity: [0.25, 0.6, 0.25] }}
-        transition={{ duration: 4.5, repeat: Infinity, ease: 'easeInOut', delay: 1.6 }} />
+        animate={{ y: [5, -5, 5], opacity: [0.25, 0.6, 0.25] }} transition={{ duration: 4.5, repeat: Infinity, ease: 'easeInOut', delay: 1.6 }} />
       <motion.circle cx="150" cy="342" r="3" fill="rgba(34,197,94,0.4)"
-        animate={{ scale: [1, 1.6, 1], opacity: [0.3, 0.7, 0.3] }}
-        transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut', delay: 0.5 }} />
+        animate={{ scale: [1, 1.6, 1], opacity: [0.3, 0.7, 0.3] }} transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut', delay: 0.5 }} />
 
       <defs>
         <linearGradient id="hGrad" x1="120" y1="86" x2="180" y2="148" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#60a5fa" />
-          <stop offset="100%" stopColor="#1d4ed8" />
+          <stop offset="0%" stopColor="#60a5fa" /><stop offset="100%" stopColor="#1d4ed8" />
         </linearGradient>
         <linearGradient id="bGrad" x1="99" y1="152" x2="201" y2="260" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#2563eb" />
-          <stop offset="100%" stopColor="#1e3a8a" />
+          <stop offset="0%" stopColor="#2563eb" /><stop offset="100%" stopColor="#1e3a8a" />
         </linearGradient>
         <linearGradient id="aGradR" x1="196" y1="183" x2="248" y2="207" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#1d4ed8" />
-          <stop offset="100%" stopColor="#3b82f6" />
+          <stop offset="0%" stopColor="#1d4ed8" /><stop offset="100%" stopColor="#3b82f6" />
         </linearGradient>
         <linearGradient id="aGradL" x1="104" y1="183" x2="52" y2="207" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#1d4ed8" />
-          <stop offset="100%" stopColor="#3b82f6" />
+          <stop offset="0%" stopColor="#1d4ed8" /><stop offset="100%" stopColor="#3b82f6" />
         </linearGradient>
         <linearGradient id="lGrad" x1="0" y1="259" x2="0" y2="313" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#1d4ed8" />
-          <stop offset="100%" stopColor="#1e3a8a" />
+          <stop offset="0%" stopColor="#1d4ed8" /><stop offset="100%" stopColor="#1e3a8a" />
         </linearGradient>
       </defs>
     </svg>
