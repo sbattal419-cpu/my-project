@@ -352,8 +352,8 @@ export default function AdminDashboard() {
 
       <main className="adm-main">
         <div className="adm-stats-row">
-          <StatCard icon="📋" label="الحقوق المسجلة" value={stats.rights} color="#2563eb" />
-          <StatCard icon="👥" label="المستخدمون"     value={stats.users}  color="#7c3aed" />
+          <StatCard icon="📋" label="الحقوق المسجلة"  value={stats.rights} color="#2563eb" onClick={() => setActiveTab('rights')} />
+          <StatCard icon="👥" label="المستخدمون"      value={stats.users}  color="#7c3aed" onClick={() => setActiveTab('users')} />
           <StatCard icon="📁" label="الملفات المرفوعة" value={stats.files} color="#059669" />
         </div>
 
@@ -540,14 +540,19 @@ export default function AdminDashboard() {
   )
 }
 
-function StatCard({ icon, label, value, color }: { icon: string; label: string; value: number; color: string }) {
+function StatCard({ icon, label, value, color, onClick }: { icon: string; label: string; value: number; color: string; onClick?: () => void }) {
   return (
-    <div className="adm-stat-card">
+    <div className={`adm-stat-card${onClick ? ' adm-stat-card-link' : ''}`} onClick={onClick} role={onClick ? 'button' : undefined}>
       <div className="adm-stat-icon" style={{ background: color + '18', color }}>{icon}</div>
       <div>
         <p className="adm-stat-value" style={{ color }}>{value.toLocaleString('ar-EG')}</p>
         <p className="adm-stat-label">{label}</p>
       </div>
+      {onClick && (
+        <svg className="adm-stat-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round">
+          <path d="m15 18-6-6 6-6"/>
+        </svg>
+      )}
     </div>
   )
 }
