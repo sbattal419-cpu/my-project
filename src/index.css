@@ -1787,15 +1787,30 @@ body {
   height: 52px;
   font-size: 20px;
   font-weight: 700;
-  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   background: rgba(255,255,255,0.05);
   border: 1.5px solid rgba(255,255,255,0.14);
   border-radius: 10px;
   color: #f1f5f9;
   outline: none;
   transition: border-color 0.2s, box-shadow 0.2s;
-  caret-color: #3b82f6;
   padding: 0;
+}
+/* داخل المودال الأبيض */
+.wsm-modal .otp-box {
+  color: #1e293b;
+  background: #f8fafc;
+  border-color: #cbd5e1;
+}
+.wsm-modal .otp-box.otp-box-filled {
+  background: #eff6ff;
+  border-color: rgba(59,130,246,0.5);
+}
+.wsm-modal .otp-box.otp-box-active {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59,130,246,0.15);
 }
 .otp-box:focus {
   border-color: rgba(59,130,246,0.6);
