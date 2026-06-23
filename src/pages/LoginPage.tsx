@@ -1,3 +1,11 @@
+// ════════════════════════════════════════════════════════════════
+// FILE: src/pages/LoginPage.tsx
+// صفحة تسجيل الدخول + مودال إعادة تعيين كلمة المرور
+// للتعديل:
+//   نموذج الدخول    → ابحث عن handleSubmit
+//   مودال الاستعادة → ابحث عن RESET MODAL
+//   مراحل الاستعادة: email → otp → password → done
+// ════════════════════════════════════════════════════════════════
 import { type FormEvent, useState, useEffect, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
@@ -180,6 +188,15 @@ export default function LoginPage() {
         </p>
       </motion.div>
 
+      {/* ════════════════════════════════════════════════════════
+          RESET MODAL — مودال إعادة تعيين كلمة المرور
+          للتعديل: ابحث عن RESET MODAL
+          المراحل:
+            email    → إدخال البريد وإرسال OTP
+            otp      → إدخال 8 أرقام + التحقق منها
+            password → إدخال كلمة مرور جديدة
+            done     → شاشة النجاح
+          ════════════════════════════════════════════════════════ */}
       {showReset && (
         <div className="wsm-overlay" onClick={() => setShowReset(false)}>
           <div className="wsm-modal" onClick={e => e.stopPropagation()}>

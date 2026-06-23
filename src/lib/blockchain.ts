@@ -1,11 +1,26 @@
+// ════════════════════════════════════════════════════════════════
+// FILE: src/lib/blockchain.ts
+// كل عمليات Ethereum: ABI العقد، تسجيل الحق، التحقق، نقل الملكية
+// الشبكة: Sepolia Testnet (chainId: 11155111)
+// للتعديل: ابحث عن اسم الوظيفة مثل: registerIPOnChain / hashFile / fetchCertificate
+// ════════════════════════════════════════════════════════════════
 import { ethers } from 'ethers'
 import { BLOCKCHAIN } from '../config/blockchain.config'
 
-// ─── Active Provider ───────────────────────────────────────────────────────────
+// _activeProvider — المزوّد النشط (MetaMask أو محفظة EIP-6963 أخرى)
+// يُضبط عبر setActiveProvider عند ربط محفظة
 let _activeProvider: any = null
 export function setActiveProvider(p: any) { _activeProvider = p }
 
-// ─── ABI ─────────────────────────────────────────────────────────────────────
+// ════════════════════════════════════════════════════════════════
+// SECTION: CONTRACT ABI — واجهة العقد الذكي
+// للتعديل: ابحث عن CONTRACT ABI
+// registerIP     → تسجيل حق جديد → يُرجع certId
+// getCertificate → قراءة شهادة بالـ certId
+// verifyByHash   → البحث بهاش الملف → يُرجع certId
+// getOwnerCertificates → كل شهادات عنوان محفظة
+// transferCertificate  → نقل الملكية لعنوان آخر
+// ════════════════════════════════════════════════════════════════
 export const CONTRACT_ABI = [
   {
     inputs: [
@@ -82,7 +97,12 @@ export const CONTRACT_ABI = [
   },
 ]
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// ════════════════════════════════════════════════════════════════
+// SECTION: HELPERS — وظائف مساعدة
+// للتعديل: ابحث عن HELPERS
+// ════════════════════════════════════════════════════════════════
+
+// getProvider — يُرجع BrowserProvider من المحفظة المتصلة (للكتابة)
 export function getProvider() {
   const p = _activeProvider ?? window.ethereum
   if (!p) throw new Error('لا يوجد محفظة متصلة')
@@ -210,6 +230,15 @@ export interface RegisterResult {
   blockNumber: number
 }
 
+// ════════════════════════════════════════════════════════════════
+// SECTION: registerIPOnChain — التسجيل على البلوكشين
+// للتعديل: ابحث عن registerIPOnChain
+// الخطوات:
+// 1. getContract(signed=true) → يحتاج توقيع من MetaMask
+// 2. contract.registerIP(docHash, ipType, title, ...) → إرسال معاملة
+// 3. tx.wait() → الانتظار حتى تُؤكَّد الكتلة
+// 4. استخراج certId من حدث IPRegistered في الـ logs
+// ════════════════════════════════════════════════════════════════
 export async function registerIPOnChain(params: RegisterParams): Promise<RegisterResult> {
   const contract = await getContract(true)
   const nonce    = Math.floor(Date.now() / 1000)
@@ -232,7 +261,12 @@ export async function registerIPOnChain(params: RegisterParams): Promise<Registe
   return { certId, txHash: receipt.hash, documentHash: docHash, blockNumber: receipt.blockNumber }
 }
 
-// ─── الخيار ب: التحقق من الحق ────────────────────────────────────────────────
+// ════════════════════════════════════════════════════════════════
+// SECTION: VERIFY — التحقق من الشهادات
+// للتعديل: ابحث عن VERIFY
+// fetchCertificate — جلب بيانات شهادة بـ certId (قراءة فقط)
+// verifyByHash    — البحث بهاش الملف → يُرجع certId (0 = غير موجود)
+// ════════════════════════════════════════════════════════════════
 export interface CertificateData {
   certId: string
   owner: string
@@ -267,7 +301,12 @@ export async function verifyByHash(hash: string): Promise<string> {
   return id.toString()
 }
 
-// ─── الخيار ج: NFT Gallery ────────────────────────────────────────────────────
+// ════════════════════════════════════════════════════════════════
+// SECTION: OWNER CERTS — شهادات المحفظة
+// للتعديل: ابحث عن OWNER CERTS
+// fetchOwnerCertificates — كل شهادات عنوان محفظة (للعرض في CertificatesPage)
+// transferCertOnChain    — نقل ملكية شهادة لعنوان آخر
+// ════════════════════════════════════════════════════════════════
 export async function fetchOwnerCertificates(address: string): Promise<CertificateData[]> {
   const contract = await getContract()
   const ids: bigint[] = await contract.getOwnerCertificates(address)

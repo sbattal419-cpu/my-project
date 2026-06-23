@@ -1,3 +1,11 @@
+// ════════════════════════════════════════════════════════════════
+// FILE: src/context/AuthContext.tsx
+// سياق المصادقة العام — يوفر user وloading لكل المكوّنات
+// الاستخدام: const { user, loading } = useAuth()
+// user    — بيانات المستخدم الحالي (null إذا غير مسجّل)
+// loading — true أثناء فحص الجلسة عند بدء التطبيق
+// للتعديل: ابحث عن AuthContext
+// ════════════════════════════════════════════════════════════════
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 import type { User } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'

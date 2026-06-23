@@ -1,3 +1,16 @@
+// ════════════════════════════════════════════════════════════════
+// FILE: src/hooks/useWallet.ts
+// Hook إدارة حالة محفظة Ethereum (MetaMask / EIP-6963)
+// للتعديل: ابحث عن connect / switchToSepolia / disconnect
+// القيم المُعادة:
+//   address      — عنوان المحفظة المتصلة
+//   isConnected  — هل المحفظة مربوطة؟
+//   isSepolia    — هل الشبكة Sepolia (chainId=11155111)؟
+//   connect      — ربط window.ethereum (MetaMask)
+//   connectWith  — ربط مزوّد محدد (EIP-6963)
+//   disconnect   — قطع الاتصال
+//   switchToSepolia — تبديل الشبكة لـ Sepolia
+// ════════════════════════════════════════════════════════════════
 import { useState, useEffect, useCallback } from 'react'
 import { ethers } from 'ethers'
 import { BLOCKCHAIN } from '../config/blockchain.config'

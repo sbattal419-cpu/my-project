@@ -1,3 +1,19 @@
+// ════════════════════════════════════════════════════════════════
+// FILE: src/App.tsx
+// جذر التطبيق — يحتوي التوجيه والسياقات العامة
+// للتعديل: ابحث عن Route لإضافة صفحة جديدة
+// خريطة الصفحات:
+//   /              → HomePage
+//   /login         → LoginPage
+//   /register      → RegisterPage
+//   /register-right → RegisterRightPage  [محمي]
+//   /verify        → VerifyPage
+//   /certificates  → CertificatesPage
+//   /admin         → AdminDashboard      [محمي]
+//   /reset-password → ResetPasswordPage
+//   /registry      → PublicRegistryPage
+//   /privacy | /terms | /accessibility → صفحات قانونية
+// ════════════════════════════════════════════════════════════════
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { useEffect } from 'react'
 import { AuthProvider } from './context/AuthContext'
@@ -17,6 +33,8 @@ import PrivacyPage from './pages/PrivacyPage'
 import TermsPage from './pages/TermsPage'
 import AccessibilityPage from './pages/AccessibilityPage'
 
+// SoundLayer — يُضيف أصوات نقر/hover على كل الأزرار والروابط تلقائياً
+// يعمل بـ delegation (مستمع واحد على document) لكفاءة أفضل
 function SoundLayer() {
   useEffect(() => {
     const onClick = (e: MouseEvent) => {

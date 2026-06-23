@@ -1,3 +1,13 @@
+// ════════════════════════════════════════════════════════════════
+// FILE: src/pages/CertificatesPage.tsx
+// صفحة شهاداتي — عرض وإدارة الحقوق المسجّلة
+// المصدر الأساسي: Supabase (إذا مسجّل دخول) أو البلوكشين (بالمحفظة)
+// للتعديل:
+//   جلب الشهادات  → ابحث عن loadCerts
+//   نقل الملكية   → ابحث عن handleTransfer
+//   مودال النقل   → ابحث عن Transfer Modal
+//   بطاقة الشهادة → ابحث عن CertCard
+// ════════════════════════════════════════════════════════════════
 import { useState, useEffect, useCallback, useRef } from 'react'
 import InfoTip from '../components/InfoTip'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -148,6 +158,9 @@ export default function CertificatesPage() {
 
   const isReady = wallet.isConnected && wallet.isSepolia
 
+  // loadCerts — جلب الشهادات من Supabase أو البلوكشين
+  // إذا user موجود → getUserCerts من Supabase (أسرع وأكمل بيانات)
+  // إذا لا user → fetchOwnerCertificates من البلوكشين (بعنوان المحفظة)
   const loadCerts = useCallback(async () => {
     setLoading(true)
     setLoadError(null)
@@ -184,6 +197,8 @@ export default function CertificatesPage() {
     }
   }, [user, isReady, wallet.address, loadCerts])
 
+  // handleTransfer — نقل ملكية شهادة على البلوكشين
+  // يستدعي transferCertOnChain ثم يُعيد تحميل الشهادات
   const handleTransfer = async () => {
     if (!transferCertId || !toAddress.trim()) return
     setTransferring(true)

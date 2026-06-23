@@ -1,3 +1,12 @@
+// ════════════════════════════════════════════════════════════════
+// FILE: src/pages/RegisterPage.tsx
+// صفحة إنشاء حساب جديد — مرحلتان: form → otp
+// المرحلة 1 (form): اسم + إيميل + كلمة مرور + صورة اختيارية
+// المرحلة 2 (otp):  إدخال رمز 8 أرقام من الإيميل → verifyEmailOTP
+// للتعديل:
+//   نموذج التسجيل → ابحث عن handleSubmit
+//   خطوة OTP      → ابحث عن step === 'otp'
+// ════════════════════════════════════════════════════════════════
 import { type FormEvent, useState, useEffect, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
@@ -49,6 +58,9 @@ export default function RegisterPage() {
     if (!loading && user) navigate('/', { replace: true })
   }, [user, loading, navigate])
 
+  // handleSubmit — إنشاء الحساب
+  // إذا أعاد Supabase session فوراً → انتقل للرئيسية مباشرة
+  // إذا لم يُرجع session → انتقل لمرحلة OTP (تأكيد البريد مطلوب)
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
     setError('')

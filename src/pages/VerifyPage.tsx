@@ -1,3 +1,13 @@
+// ════════════════════════════════════════════════════════════════
+// FILE: src/pages/VerifyPage.tsx
+// صفحة التحقق من الشهادات — بدون تسجيل دخول
+// طريقتان للبحث:
+//   id   → fetchCertificate(certId) مباشرة من البلوكشين
+//   hash → verifyByHash(hash) يُرجع certId ثم fetchCertificate
+// للتعديل:
+//   البحث → ابحث عن handleSearch
+//   عرض النتيجة → ابحث عن CertResult
+// ════════════════════════════════════════════════════════════════
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Link } from 'react-router-dom'
@@ -147,6 +157,9 @@ export default function VerifyPage() {
     setError(null)
   }
 
+  // handleSearch — يبحث عن الشهادة حسب التبويب المختار
+  // tab='id'   → fetchCertificate مباشرة
+  // tab='hash' → verifyByHash أولاً (يُرجع certId) ثم fetchCertificate
   const handleSearch = async () => {
     const val = input.trim()
     if (!val) return

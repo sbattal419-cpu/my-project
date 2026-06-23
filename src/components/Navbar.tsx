@@ -1,3 +1,12 @@
+// ════════════════════════════════════════════════════════════════
+// FILE: src/components/Navbar.tsx
+// شريط التنقل العلوي — الروابط، الإشعارات، قائمة المستخدم
+// للتعديل:
+//   روابط التنقل    → ابحث عن ANCHOR_LINKS أو PAGE_LINKS
+//   جرس الإشعارات  → ابحث عن NOTIFICATIONS
+//   قائمة المستخدم → ابحث عن PROFILE MENU
+//   القائمة المحمولة → ابحث عن Mobile menu
+// ════════════════════════════════════════════════════════════════
 import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate, Link } from 'react-router-dom'
@@ -85,6 +94,8 @@ export default function Navbar() {
     getUserNotifications(user.id).then(setNotifs).catch(() => {})
   }, [user])
 
+  // openNotifs — يفتح/يغلق قائمة الإشعارات
+  // عند الفتح إذا كان فيه غير مقروء → يستدعي markNotificationsRead تلقائياً
   const openNotifs = async () => {
     setNotifOpen(v => !v)
     setProfileOpen(false)
@@ -146,7 +157,7 @@ export default function Navbar() {
           </ul>
 
           <div className="navbar-actions">
-            {/* Notification bell */}
+            {/* ── NOTIFICATIONS — جرس الإشعارات (يظهر فقط للمسجّلين) ── */}
             {user && (
               <div className="notif-wrap" ref={notifRef}>
                 <button className="notif-btn" onClick={openNotifs} aria-label="الإشعارات">
@@ -192,7 +203,7 @@ export default function Navbar() {
               </div>
             )}
 
-            {/* ── Unified profile circle (always visible) ── */}
+            {/* ── PROFILE MENU — دائرة الملف الشخصي (مسجّل / غير مسجّل) ── */}
             <div className="profile-wrap" ref={profileRef}>
               <button
                 className="profile-btn"
