@@ -1,11 +1,18 @@
+import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { Link } from 'react-router-dom'
 import { useLang } from '../context/LanguageContext'
+import { getStatistics } from '../lib/supabase-ipr'
 
 const EASE = 'easeOut' as const
 
 export default function HeroSection() {
   const { t } = useLang()
+  const [rightsCount, setRightsCount] = useState<number | null>(null)
+
+  useEffect(() => {
+    getStatistics().then(s => setRightsCount(s.rights)).catch(() => {})
+  }, [])
 
   return (
     <section className="hero-section" id="home">
@@ -115,7 +122,9 @@ export default function HeroSection() {
                   </svg>
                 </div>
                 <div>
-                  <div className="hero-float-num">+10,000</div>
+                  <div className="hero-float-num">
+                    {rightsCount !== null ? `+${rightsCount.toLocaleString('en-US')}` : '...'}
+                  </div>
                   <div className="hero-float-sub">{t('hero.float.label')}</div>
                 </div>
               </motion.div>

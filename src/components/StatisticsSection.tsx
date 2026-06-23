@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { motion, useInView } from 'framer-motion'
 import { useLang } from '../context/LanguageContext'
+import { getStatistics } from '../lib/supabase-ipr'
 
 const EASE = 'easeOut' as const
+const FOUNDING_YEAR = 2010
 
 function useCounter(target: number, duration = 2200, active = false) {
   const [value, setValue] = useState(0)
@@ -52,11 +54,18 @@ export default function StatisticsSection() {
   const { t } = useLang()
   const ref = useRef<HTMLDivElement>(null)
   const inView = useInView(ref, { once: true, amount: 0.3 })
+  const [stats, setStats] = useState({ rights: 0, users: 0 })
+
+  useEffect(() => {
+    getStatistics().then(setStats).catch(() => {})
+  }, [])
+
+  const yearsOfExperience = new Date().getFullYear() - FOUNDING_YEAR
 
   const STATS = [
-    { target: 10000, suffix: '+', labelKey: 'stats.rights' },
-    { target: 5000,  suffix: '+', labelKey: 'stats.users' },
-    { target: 15,    suffix: '+', labelKey: 'stats.years' },
+    { target: stats.rights,      suffix: '+', labelKey: 'stats.rights' },
+    { target: stats.users,       suffix: '+', labelKey: 'stats.users' },
+    { target: yearsOfExperience, suffix: '+', labelKey: 'stats.years' },
   ]
 
   return (

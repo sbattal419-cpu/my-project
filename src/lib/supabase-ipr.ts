@@ -229,3 +229,11 @@ export async function submitRating(userId: string, stars: number): Promise<void>
     .upsert({ auth_user_id: userId, stars }, { onConflict: 'auth_user_id' })
   if (error) throw error
 }
+
+export async function getStatistics(): Promise<{ rights: number; users: number }> {
+  const [{ count: rights }, { count: users }] = await Promise.all([
+    supabase.from('Rights').select('*', { count: 'exact', head: true }),
+    supabase.from('profiles').select('*', { count: 'exact', head: true }),
+  ])
+  return { rights: rights ?? 0, users: users ?? 0 }
+}

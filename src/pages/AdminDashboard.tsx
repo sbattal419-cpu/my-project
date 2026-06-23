@@ -80,13 +80,18 @@ export default function AdminDashboard() {
   const [kycRejectModal, setKycRejectModal] = useState<{ user: UserRow } | null>(null)
   const [kycRejectNote, setKycRejectNote] = useState('')
 
-  const ADMIN_EMAILS = ['sbattal419@gmail.com', 'joudhija@gmail.com']
-
   useEffect(() => {
     if (loading) return
     if (!user) { setChecking(false); return }
-    setIsAdmin(ADMIN_EMAILS.includes(user.email ?? ''))
-    setChecking(false)
+    supabase
+      .from('profiles')
+      .select('role')
+      .eq('auth_user_id', user.id)
+      .single()
+      .then(({ data }) => {
+        setIsAdmin(data?.role === 'admin')
+        setChecking(false)
+      })
   }, [user, loading])
 
   const loadData = () => {
