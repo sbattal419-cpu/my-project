@@ -35,50 +35,52 @@ const EyeIcon = ({ visible }: { visible: boolean }) => visible ? (
 )
 
 export default function AccountSettingsModal({ open, onClose }: Props) {
-  const { user } = useAuth()
+  const { user } = useAuth()                                                         // بيانات المستخدم الحالي من Supabase Auth
 
-  // Current password (required before any change)
-  const [currentPwd, setCurrentPwd] = useState('')
-  const [showCurrentPwd, setShowCurrentPwd] = useState(false)
-  const [isVerified, setIsVerified] = useState(false)
-  const [verifyStatus, setVerifyStatus] = useState<SectionStatus>(idle())
+  // ── قسم التحقق بكلمة المرور — بوابة أمان قبل أي تعديل ─────────────────────
+  const [currentPwd, setCurrentPwd] = useState('')                                  // كلمة المرور الحالية يكتبها المستخدم
+  const [showCurrentPwd, setShowCurrentPwd] = useState(false)                       // إظهار/إخفاء كلمة المرور
+  const [isVerified, setIsVerified] = useState(false)                               // true = بوابة مفتوحة، false = مقفّلة
+  const [verifyStatus, setVerifyStatus] = useState<SectionStatus>(idle())           // حالة تحميل/خطأ/نجاح لخطوة التحقق
 
-  // Avatar
-  const fileInputRef = useRef<HTMLInputElement>(null)
-  const [avatarStatus, setAvatarStatus] = useState<SectionStatus>(idle())
+  // ── قسم الصورة الشخصية ─────────────────────────────────────────────────────
+  const fileInputRef = useRef<HTMLInputElement>(null)                               // مرجع لـ <input type="file"> المخفي — نضغطه برمجياً
+  const [avatarStatus, setAvatarStatus] = useState<SectionStatus>(idle())           // حالة رفع الصورة لـ Supabase Storage
 
-  // Name
-  const [name, setName] = useState('')
-  const [nameStatus, setNameStatus] = useState<SectionStatus>(idle())
+  // ── قسم الاسم ──────────────────────────────────────────────────────────────
+  const [name, setName] = useState('')                                              // الاسم الكامل الذي يكتبه المستخدم
+  const [nameStatus, setNameStatus] = useState<SectionStatus>(idle())               // حالة حفظ الاسم
 
-  // Email
-  const [email, setEmail] = useState('')
-  const [emailStatus, setEmailStatus] = useState<SectionStatus>(idle())
+  // ── قسم البريد الإلكتروني ──────────────────────────────────────────────────
+  const [email, setEmail] = useState('')                                            // البريد الجديد المطلوب تغييره
+  const [emailStatus, setEmailStatus] = useState<SectionStatus>(idle())             // حالة تحديث البريد
 
-  // KYC
-  const [kycNationalId, setKycNationalId] = useState('')
-  const [kycFile, setKycFile] = useState<File | null>(null)
-  const [kycFileName, setKycFileName] = useState('')
-  const [kycStatus, setKycStatus] = useState<{ national_id: string | null; kyc_status: string | null; kyc_note: string | null; id_document_url: string | null } | null>(null)
-  const [kycSectionStatus, setKycSectionStatus] = useState<SectionStatus>(idle())
-  const kycFileRef = useRef<HTMLInputElement>(null)
+  // ── قسم KYC — التحقق من الهوية الوطنية ────────────────────────────────────
+  const [kycNationalId, setKycNationalId] = useState('')                            // رقم الهوية الوطنية
+  const [kycFile, setKycFile] = useState<File | null>(null)                        // ملف صورة الهوية المختار
+  const [kycFileName, setKycFileName] = useState('')                               // اسم الملف للعرض في الواجهة فقط
+  const [kycStatus, setKycStatus] = useState<{ national_id: string | null; kyc_status: string | null; kyc_note: string | null; id_document_url: string | null } | null>(null) // بيانات KYC الحالية من جدول profiles
+  const [kycSectionStatus, setKycSectionStatus] = useState<SectionStatus>(idle())   // حالة إرسال طلب KYC
+  const kycFileRef = useRef<HTMLInputElement>(null)                                 // مرجع لـ input ملف الهوية
 
-  // Password
-  const [newPwd, setNewPwd] = useState('')
-  const [confirmPwd, setConfirmPwd] = useState('')
-  const [showNewPwd, setShowNewPwd] = useState(false)
-  const [showConfirmPwd, setShowConfirmPwd] = useState(false)
-  const [pwdStatus, setPwdStatus] = useState<SectionStatus>(idle())
+  // ── قسم كلمة المرور الجديدة ─────────────────────────────────────────────────
+  const [newPwd, setNewPwd] = useState('')                                          // كلمة المرور الجديدة
+  const [confirmPwd, setConfirmPwd] = useState('')                                  // تأكيد كلمة المرور (يجب أن تطابق newPwd)
+  const [showNewPwd, setShowNewPwd] = useState(false)                               // إظهار/إخفاء كلمة المرور الجديدة
+  const [showConfirmPwd, setShowConfirmPwd] = useState(false)                       // إظهار/إخفاء حقل التأكيد
+  const [pwdStatus, setPwdStatus] = useState<SectionStatus>(idle())                 // حالة تغيير كلمة المرور
 
-  // Reset all state when modal opens/closes
+  // ── useEffect: إعادة ضبط كل الحالة عند فتح المودال ─────────────────────────
+  // يُشغَّل عند كل تغيير في قيمة open (فتح أو إغلاق)
+  // يضمن أن المودال يبدأ نظيفاً بلا بيانات من الفتحة السابقة
   useEffect(() => {
     if (open && user) {
-      setName((user.user_metadata?.full_name as string) ?? '')
-      setEmail(user.email ?? '')
-      setCurrentPwd('')
-      setIsVerified(false)
-      setVerifyStatus(idle())
-      setNameStatus(idle())
+      setName((user.user_metadata?.full_name as string) ?? '')                      // ابدأ بالاسم الحالي من Supabase metadata
+      setEmail(user.email ?? '')                                                    // ابدأ بالبريد الحالي
+      setCurrentPwd('')                                                             // امسح حقل كلمة المرور دائماً لأسباب أمنية
+      setIsVerified(false)                                                          // أعد قفل البوابة الأمنية
+      setVerifyStatus(idle())                                                        // صفّر حالة التحقق
+      setNameStatus(idle())                                                          // صفّر حالات كل الأقسام
       setEmailStatus(idle())
       setPwdStatus(idle())
       setAvatarStatus(idle())
@@ -88,106 +90,117 @@ export default function AccountSettingsModal({ open, onClose }: Props) {
       setKycFile(null)
       setKycFileName('')
       setKycSectionStatus(idle())
-      getKYCStatus().then(s => setKycStatus(s))
+      getKYCStatus().then(s => setKycStatus(s))                                     // اجلب أحدث حالة KYC من قاعدة البيانات
     }
   }, [open]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Sync name/email when user metadata updates after a save
+  // ── useEffect: مزامنة الاسم بعد updateProfile ────────────────────────────────
+  // بعد الحفظ الناجح تتغير user.user_metadata وتُطلق هذا الـ effect
+  // الشرط prev === '' يمنع الكتابة فوق ما يكتبه المستخدم حالياً
   useEffect(() => {
     if (user && open) {
       setName(prev => {
         const fresh = (user.user_metadata?.full_name as string) ?? ''
-        return prev === '' ? fresh : prev
+        return prev === '' ? fresh : prev                                            // لا تستبدل ما يكتبه المستخدم
       })
     }
   }, [user, open])
 
-  const avatarUrl = user?.user_metadata?.avatar_url as string | undefined
-  const initials = (user?.user_metadata?.full_name as string)?.[0]?.toUpperCase()
+  const avatarUrl = user?.user_metadata?.avatar_url as string | undefined          // رابط الصورة من Supabase Storage
+  const initials = (user?.user_metadata?.full_name as string)?.[0]?.toUpperCase()  // أول حرف من الاسم للصورة البديلة
     ?? user?.email?.[0]?.toUpperCase() ?? '؟'
 
-  // ── Verify current password ──
+  // ── handleVerify — التحقق من كلمة المرور الحالية ──────────────────────────
+  // يستدعي verifyCurrentPassword (re-login مؤقت) → يفتح البوابة الأمنية
   const handleVerify = async () => {
     if (!currentPwd) { setVerifyStatus({ loading: false, error: 'يرجى إدخال كلمة المرور الحالية', success: '' }); return }
     setVerifyStatus({ loading: true, error: '', success: '' })
     try {
-      await verifyCurrentPassword(user!.email!, currentPwd)
-      setIsVerified(true)
+      await verifyCurrentPassword(user!.email!, currentPwd)                        // يُجري signInWithPassword للتحقق
+      setIsVerified(true)                                                           // افتح البوابة الأمنية
       setVerifyStatus({ loading: false, error: '', success: 'تم التحقق من هويتك' })
     } catch (err) {
-      setIsVerified(false)
+      setIsVerified(false)                                                          // ابقِ البوابة مقفّلة عند الفشل
       setVerifyStatus({ loading: false, error: (err as Error).message, success: '' })
     }
   }
 
-  // Helper: guard all save handlers behind verification
+  // ── withVerify — حارس: يمنع تشغيل أي معالج قبل التحقق ─────────────────────
+  // كل معالجات الحفظ تمر عبر هذه الوظيفة أولاً
   const withVerify = async (action: () => Promise<void>, setStatus: (s: SectionStatus) => void) => {
     if (!isVerified) {
       setStatus({ loading: false, error: 'يجب التحقق من كلمة المرور الحالية أولاً', success: '' })
-      return
+      return                                                                        // أوقف التنفيذ إذا لم يتحقق المستخدم
     }
-    await action()
+    await action()                                                                  // نفّذ الإجراء الفعلي
   }
 
-  // ── Avatar ──
+  // ── handleAvatarChange — رفع صورة شخصية جديدة ──────────────────────────────
   const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file || !user) return
     if (!isVerified) { setAvatarStatus({ loading: false, error: 'يجب التحقق من كلمة المرور الحالية أولاً', success: '' }); e.target.value = ''; return }
     setAvatarStatus({ loading: true, error: '', success: '' })
     try {
-      await uploadAvatar(file, user.id)
+      await uploadAvatar(file, user.id)                                             // ارفع إلى avatars/{userId}.{ext} في Supabase Storage
       setAvatarStatus({ loading: false, error: '', success: 'تم تحديث الصورة بنجاح' })
     } catch {
       setAvatarStatus({ loading: false, error: 'فشل رفع الصورة، حاول مجدداً', success: '' })
     } finally {
-      e.target.value = ''
+      e.target.value = ''                                                           // صفّر الـ input حتى يمكن اختيار نفس الملف مجدداً
     }
   }
 
-  // ── Name ──
+  // ── handleSaveName — حفظ الاسم الجديد ──────────────────────────────────────
+  // يمر عبر withVerify → يستدعي updateProfile (يحدّث user_metadata.full_name)
   const handleSaveName = () => withVerify(async () => {
     if (!name.trim()) { setNameStatus({ loading: false, error: 'يرجى إدخال الاسم', success: '' }); return }
     setNameStatus({ loading: true, error: '', success: '' })
     try {
-      await updateProfile(name.trim())
+      await updateProfile(name.trim())                                              // يحدّث user_metadata في Supabase Auth
       setNameStatus({ loading: false, error: '', success: 'تم تحديث الاسم بنجاح' })
     } catch {
       setNameStatus({ loading: false, error: 'فشل تحديث الاسم، حاول مجدداً', success: '' })
     }
   }, setNameStatus)
 
-  // ── Email ──
+  // ── handleSaveEmail — تحديث البريد الإلكتروني ──────────────────────────────
+  // Supabase يرسل رابط تأكيد للبريد الجديد — لا يتغير حتى ينقر المستخدم الرابط
   const handleSaveEmail = () => withVerify(async () => {
     if (!email.trim()) { setEmailStatus({ loading: false, error: 'يرجى إدخال البريد الإلكتروني', success: '' }); return }
-    if (email === user?.email) { setEmailStatus({ loading: false, error: 'هذا هو بريدك الحالي', success: '' }); return }
+    if (email === user?.email) { setEmailStatus({ loading: false, error: 'هذا هو بريدك الحالي', success: '' }); return } // تحقق أن البريد مختلف
     setEmailStatus({ loading: true, error: '', success: '' })
     try {
-      await updateEmail(email.trim())
+      await updateEmail(email.trim())                                               // يُرسل رابط تأكيد للبريد الجديد
       setEmailStatus({ loading: false, error: '', success: 'تم إرسال رابط التأكيد إلى بريدك الجديد' })
     } catch {
       setEmailStatus({ loading: false, error: 'فشل تحديث البريد الإلكتروني، حاول مجدداً', success: '' })
     }
   }, setEmailStatus)
 
-  // ── KYC ──
+  // ── handleKYCFileChange — اختيار ملف الهوية ────────────────────────────────
   const handleKYCFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
-    setKycFile(file)
-    setKycFileName(file.name)
-    e.target.value = ''
+    setKycFile(file)                                                                // احفظ كائن File للرفع لاحقاً
+    setKycFileName(file.name)                                                       // احفظ الاسم للعرض في الواجهة
+    e.target.value = ''                                                             // صفّر الـ input للسماح باختيار نفس الملف
   }
 
+  // ── handleSubmitKYC — إرسال طلب التحقق من الهوية ───────────────────────────
+  // الخطوات:
+  // 1. التحقق من الحقول (رقم الهوية + الملف)
+  // 2. submitKYC → يرفع الملف لـ Storage ويحدّث جدول profiles
+  // 3. تحديث kycStatus محلياً لعرض حالة "قيد المراجعة" فوراً
   const handleSubmitKYC = async () => {
     if (!kycNationalId.trim()) { setKycSectionStatus({ loading: false, error: 'يرجى إدخال رقم الهوية الوطنية', success: '' }); return }
     if (!kycFile) { setKycSectionStatus({ loading: false, error: 'يرجى رفع صورة بطاقة الهوية', success: '' }); return }
     setKycSectionStatus({ loading: true, error: '', success: '' })
     try {
-      await submitKYC(kycNationalId, kycFile)
-      setKycStatus({ national_id: kycNationalId, kyc_status: 'pending', kyc_note: null, id_document_url: null })
+      await submitKYC(kycNationalId, kycFile)                                       // رفع الملف + تحديث profiles في Supabase
+      setKycStatus({ national_id: kycNationalId, kyc_status: 'pending', kyc_note: null, id_document_url: null }) // تحديث محلي بلا انتظار
       setKycSectionStatus({ loading: false, error: '', success: 'تم إرسال بيانات الهوية، في انتظار مراجعة الإدارة' })
-      setKycNationalId('')
+      setKycNationalId('')                                                           // نظّف الحقول بعد الإرسال الناجح
       setKycFile(null)
       setKycFileName('')
     } catch {
@@ -195,15 +208,16 @@ export default function AccountSettingsModal({ open, onClose }: Props) {
     }
   }
 
-  // ── Password ──
+  // ── handleSavePassword — تغيير كلمة المرور ─────────────────────────────────
+  // يمر عبر withVerify → يتحقق من الحد الأدنى والتطابق → يستدعي updatePassword
   const handleSavePassword = () => withVerify(async () => {
     if (newPwd.length < 8) { setPwdStatus({ loading: false, error: 'كلمة المرور يجب أن تكون 8 أحرف على الأقل', success: '' }); return }
     if (newPwd !== confirmPwd) { setPwdStatus({ loading: false, error: 'كلمتا المرور غير متطابقتين', success: '' }); return }
     setPwdStatus({ loading: true, error: '', success: '' })
     try {
-      await updatePassword(newPwd)
+      await updatePassword(newPwd)                                                  // يُحدّث كلمة المرور في Supabase Auth
       setPwdStatus({ loading: false, error: '', success: 'تم تغيير كلمة المرور بنجاح' })
-      setNewPwd('')
+      setNewPwd('')                                                                 // نظّف الحقول بعد النجاح
       setConfirmPwd('')
     } catch {
       setPwdStatus({ loading: false, error: 'فشل تغيير كلمة المرور، حاول مجدداً', success: '' })

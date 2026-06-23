@@ -102,29 +102,38 @@ export const CONTRACT_ABI = [
 // للتعديل: ابحث عن HELPERS
 // ════════════════════════════════════════════════════════════════
 
-// getProvider — يُرجع BrowserProvider من المحفظة المتصلة (للكتابة)
+// ── getProvider — يُرجع BrowserProvider من المحفظة المتصلة (للقراءة والكتابة) ─
 export function getProvider() {
-  const p = _activeProvider ?? window.ethereum
+  const p = _activeProvider ?? window.ethereum                                      // استخدم المزوّد النشط أو window.ethereum
   if (!p) throw new Error('لا يوجد محفظة متصلة')
-  return new ethers.BrowserProvider(p)
+  return new ethers.BrowserProvider(p)                                             // BrowserProvider يفهم محافظ المتصفح
 }
 
+// ── getReadOnlyProvider — مزوّد للقراءة فقط (بدون محفظة) ────────────────────
 function getReadOnlyProvider() {
-  return new ethers.JsonRpcProvider(BLOCKCHAIN.PUBLIC_RPC)
+  return new ethers.JsonRpcProvider(BLOCKCHAIN.PUBLIC_RPC)                         // يتصل بـ RPC العامة مباشرة (بدون توقيع)
 }
 
+// ── getContract — يُنشئ كائن العقد الذكي للتفاعل معه ──────────────────────────
+// signed=true  → يحتاج توقيع من المحفظة (للكتابة: registerIP, transferCertificate)
+// signed=false → قراءة فقط (getCertificate, verifyByHash, getOwnerCertificates)
 export async function getContract(signed = false) {
   if (signed) {
     const provider = getProvider()
-    const signer = await provider.getSigner()
+    const signer = await provider.getSigner()                                       // Signer = هوية المحفظة للتوقيع على المعاملات
     return new ethers.Contract(BLOCKCHAIN.CONTRACT_ADDRESS, CONTRACT_ABI, signer)
   }
+  // للقراءة: استخدم BrowserProvider إذا وُجدت محفظة، وإلا انتقل لـ RPC عامة
   const provider = (_activeProvider ?? (typeof window !== 'undefined' && window.ethereum))
     ? getProvider()
-    : getReadOnlyProvider()
+    : getReadOnlyProvider()                                                         // fallback للـ RPC العامة (بدون محفظة)
   return new ethers.Contract(BLOCKCHAIN.CONTRACT_ADDRESS, CONTRACT_ABI, provider)
 }
 
+// ── buildDocumentHash — بناء هاش فريد للحق الفكري ─────────────────────────────
+// يُشفّر بيانات الحق بصيغة ABI ثم يطبّق keccak256 (هاش Ethereum الأساسي)
+// النتيجة: bytes32 فريد يُرسَل للعقد الذكي كمعرّف للوثيقة
+// nonce = الوقت الحالي بالثواني لضمان أن كل تسجيل يعطي هاشاً مختلفاً
 export function buildDocumentHash(data: {
   title: string
   ipType: number
@@ -133,27 +142,36 @@ export function buildDocumentHash(data: {
   ownerAddress: string
   nonce: number
 }): string {
+  // AbiCoder.encode يحوّل البيانات لصيغة bytes بترتيب وأنواع ثابتة كما يفهمها EVM
   const encoded = ethers.AbiCoder.defaultAbiCoder().encode(
-    ['string', 'uint8', 'string', 'string', 'address', 'uint256'],
+    ['string', 'uint8', 'string', 'string', 'address', 'uint256'],                 // أنواع Solidity
     [data.title, data.ipType, data.description, data.holderName, data.ownerAddress, data.nonce]
   )
-  return ethers.keccak256(encoded)
+  return ethers.keccak256(encoded)                                                  // keccak256 = خوارزمية الهاش في Ethereum
 }
 
+// truncateAddress — اختصار عنوان المحفظة للعرض: 0x1234...abcd
 export function truncateAddress(addr: string): string {
-  return `${addr.slice(0, 6)}...${addr.slice(-4)}`
+  return `${addr.slice(0, 6)}...${addr.slice(-4)}`                                 // أول 6 أحرف + آخر 4 أحرف
 }
 
+// truncateHash — اختصار هاش الوثيقة للعرض: 0x12345678...abcdef01
 export function truncateHash(hash: string): string {
   return `${hash.slice(0, 10)}...${hash.slice(-8)}`
 }
 
-// ─── SHA-256 ──────────────────────────────────────────────────────────────────
+// ── hashFile — حساب هاش SHA-256 لملف ────────────────────────────────────────
+// يُستخدم كبصمة فريدة للملف لتسجيلها على البلوكشين
+// الخطوات:
+// 1. arrayBuffer() → قراءة الملف كبيانات ثنائية خام
+// 2. crypto.subtle.digest → تطبيق SHA-256 بالـ Web Crypto API (أسرع من JS خالص)
+// 3. Uint8Array → تحويل الـ buffer لمصفوفة بايتات
+// 4. hex string → تحويل كل بايت لرقمين hex مع padding (مثل: 5 → "05")
 export async function hashFile(file: File): Promise<string> {
-  const buffer    = await file.arrayBuffer()
-  const hashBuf   = await crypto.subtle.digest('SHA-256', buffer)
-  const hashArray = Array.from(new Uint8Array(hashBuf))
-  return '0x' + hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
+  const buffer    = await file.arrayBuffer()                                        // اقرأ الملف كـ ArrayBuffer
+  const hashBuf   = await crypto.subtle.digest('SHA-256', buffer)                  // طبّق SHA-256 على البيانات الخام
+  const hashArray = Array.from(new Uint8Array(hashBuf))                            // حوّل لمصفوفة بايتات
+  return '0x' + hashArray.map(b => b.toString(16).padStart(2, '0')).join('')       // حوّل كل بايت لـ hex مع "0x" في البداية
 }
 
 // ─── Perceptual Hash (dHash) — للصور فقط ─────────────────────────────────────
@@ -279,19 +297,21 @@ export interface CertificateData {
   isValid: boolean
 }
 
+// ── fetchCertificate — جلب بيانات شهادة من البلوكشين بـ certId ──────────────
+// getCertificate يُرجع tuple بترتيب ثابت محدد في ABI — نقرأ بالأرقام r[0]..r[7]
 export async function fetchCertificate(certId: string): Promise<CertificateData> {
   const contract = await getContract()
-  const r = await contract.getCertificate(BigInt(certId))
+  const r = await contract.getCertificate(BigInt(certId))                          // BigInt مطلوب لـ uint256 في ethers.js v6
   return {
     certId,
-    owner:        r[0],
-    documentHash: r[1],
-    ipType:       Number(r[2]),
-    title:        r[3],
-    description:  r[4],
-    holderName:   r[5],
-    registeredAt: new Date(Number(r[6]) * 1000),
-    isValid:      r[7],
+    owner:        r[0],                                                             // address المالك الحالي
+    documentHash: r[1],                                                             // bytes32 هاش الوثيقة
+    ipType:       Number(r[2]),                                                     // uint8 نوع الحق (0-4)
+    title:        r[3],                                                             // string العنوان
+    description:  r[4],                                                             // string الوصف
+    holderName:   r[5],                                                             // string اسم صاحب الحق
+    registeredAt: new Date(Number(r[6]) * 1000),                                   // uint256 Unix timestamp → ضرب×1000 لتحويله لـ JS Date
+    isValid:      r[7],                                                             // bool هل الشهادة سارية؟
   }
 }
 
@@ -307,23 +327,29 @@ export async function verifyByHash(hash: string): Promise<string> {
 // fetchOwnerCertificates — كل شهادات عنوان محفظة (للعرض في CertificatesPage)
 // transferCertOnChain    — نقل ملكية شهادة لعنوان آخر
 // ════════════════════════════════════════════════════════════════
+// ── fetchOwnerCertificates — جلب كل شهادات عنوان محفظة ─────────────────────
+// getOwnerCertificates يُرجع مصفوفة certIds → نجلب كل شهادة بالتوازي
 export async function fetchOwnerCertificates(address: string): Promise<CertificateData[]> {
   const contract = await getContract()
-  const ids: bigint[] = await contract.getOwnerCertificates(address)
+  const ids: bigint[] = await contract.getOwnerCertificates(address)               // اجلب كل IDs الشهادات لهذا العنوان
 
+  // Promise.all تجلب كل الشهادات بالتوازي (أسرع من تسلسلي)
   const certs = await Promise.all(
-    ids.map(id => fetchCertificate(id.toString()))
+    ids.map(id => fetchCertificate(id.toString()))                                  // BigInt → string للـ fetchCertificate
   )
-  return certs.reverse()
+  return certs.reverse()                                                            // اعكس الترتيب لعرض الأحدث أولاً
 }
 
+// ── transferCertOnChain — نقل ملكية شهادة لعنوان آخر ─────────────────────────
+// يحتاج توقيع (signed=true) لأنها معاملة كتابة على البلوكشين
 export async function transferCertOnChain(certId: string, toAddress: string): Promise<string> {
-  const contract = await getContract(true)
-  const tx = await contract.transferCertificate(BigInt(certId), toAddress)
-  const receipt = await tx.wait()
-  return receipt.hash
+  const contract = await getContract(true)                                          // Signer مطلوب للتوقيع
+  const tx = await contract.transferCertificate(BigInt(certId), toAddress)         // أرسل معاملة البلوكشين
+  const receipt = await tx.wait()                                                   // انتظر تأكيد الكتلة
+  return receipt.hash                                                               // أرجع txHash للتسجيل والعرض
 }
 
+// isContractDeployed — تحقق هل نشرنا العقد الذكي فعلاً (ليس العنوان الافتراضي)
 export function isContractDeployed(): boolean {
   return BLOCKCHAIN.CONTRACT_ADDRESS !== '0x0000000000000000000000000000000000000000'
 }

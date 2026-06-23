@@ -30,63 +30,69 @@ const EASE = 'easeOut' as const
 function ProfileSection() {
   const { user } = useAuth()
   const { t } = useLang()
-  const avatarUrl = user?.user_metadata?.avatar_url as string | undefined
+  const avatarUrl = user?.user_metadata?.avatar_url as string | undefined          // رابط الصورة من Supabase Storage
 
-  const [name, setName] = useState((user?.user_metadata?.full_name as string) ?? '')
-  const [saving, setSaving] = useState(false)
-  const [saved, setSaved] = useState(false)
-  const [err, setErr] = useState('')
-  const [uploading, setUploading] = useState(false)
+  // ── حالة الاسم والصورة ──
+  const [name, setName] = useState((user?.user_metadata?.full_name as string) ?? '') // الاسم الحالي كقيمة ابتدائية
+  const [saving, setSaving] = useState(false)                                       // جارٍ حفظ الاسم
+  const [saved, setSaved] = useState(false)                                         // true = ظهر بعد الحفظ لـ 2.5 ثانية
+  const [err, setErr] = useState('')                                                // رسالة خطأ عامة للقسم
+  const [uploading, setUploading] = useState(false)                                 // جارٍ رفع الصورة
 
-  // Email change
-  const [showEmailEdit, setShowEmailEdit] = useState(false)
-  const [newEmail, setNewEmail] = useState('')
-  const [emailSending, setEmailSending] = useState(false)
-  const [emailSent, setEmailSent] = useState(false)
-  const [emailErr, setEmailErr] = useState('')
+  // ── حالة تغيير البريد الإلكتروني ──
+  const [showEmailEdit, setShowEmailEdit] = useState(false)                         // إظهار/إخفاء حقل البريد الجديد
+  const [newEmail, setNewEmail] = useState('')                                      // البريد الجديد الذي يكتبه المستخدم
+  const [emailSending, setEmailSending] = useState(false)                           // جارٍ إرسال رابط التأكيد
+  const [emailSent, setEmailSent] = useState(false)                                 // true = أُرسل الرابط بنجاح
+  const [emailErr, setEmailErr] = useState('')                                      // رسالة خطأ البريد
 
-  // Phone
-  const [phone, setPhone] = useState((user?.user_metadata?.phone_number as string) ?? '')
-  const [phoneSaving, setPhoneSaving] = useState(false)
-  const [phoneSaved, setPhoneSaved] = useState(false)
-  const [phoneErr, setPhoneErr] = useState('')
+  // ── حالة رقم الهاتف ──
+  const [phone, setPhone] = useState((user?.user_metadata?.phone_number as string) ?? '') // رقم الهاتف الحالي
+  const [phoneSaving, setPhoneSaving] = useState(false)                             // جارٍ حفظ الهاتف
+  const [phoneSaved, setPhoneSaved] = useState(false)                               // true = ظهرت علامة ✓ لـ 2.5 ثانية
+  const [phoneErr, setPhoneErr] = useState('')                                      // رسالة خطأ الهاتف
 
+  // ── handleSave — حفظ الاسم الكامل ───────────────────────────────────────────
   const handleSave = async () => {
-    if (!name.trim()) return
+    if (!name.trim()) return                                                        // تجاهل الحفظ إذا كان الاسم فارغاً
     setSaving(true); setErr(''); setSaved(false)
     try {
-      await updateProfile(name.trim())
+      await updateProfile(name.trim())                                              // يحدّث user_metadata.full_name في Supabase Auth
       setSaved(true)
-      setTimeout(() => setSaved(false), 2500)
+      setTimeout(() => setSaved(false), 2500)                                       // أخفِ رسالة النجاح بعد 2.5 ثانية
     } catch { setErr(t('error')) }
     finally { setSaving(false) }
   }
 
+  // ── handlePhoto — رفع صورة شخصية جديدة ──────────────────────────────────────
   const handlePhoto = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file || !user) return
     setUploading(true)
-    try { await uploadAvatar(file, user.id) }
+    try { await uploadAvatar(file, user.id) }                                       // يرفع لـ avatars/{userId}.{ext} في Storage
     catch { setErr(t('error')) }
-    finally { setUploading(false); e.target.value = '' }
+    finally { setUploading(false); e.target.value = '' }                            // صفّر input للسماح باختيار نفس الملف
   }
 
+  // ── handleEmailChange — إرسال رابط تأكيد للبريد الجديد ──────────────────────
+  // Supabase يُرسل بريد تأكيد — لا يتغير البريد حتى ينقر المستخدم الرابط
   const handleEmailChange = async () => {
     if (!newEmail.trim()) return
     setEmailSending(true); setEmailErr('')
     try {
-      await updateEmail(newEmail.trim())
-      setEmailSent(true)
+      await updateEmail(newEmail.trim())                                            // يطلب تغيير البريد في Supabase Auth
+      setEmailSent(true)                                                            // أظهر رسالة "تم الإرسال"
     } catch (e) { setEmailErr((e as Error).message || t('error')) }
     finally { setEmailSending(false) }
   }
 
+  // ── handleSavePhone — حفظ رقم الهاتف ────────────────────────────────────────
   const handleSavePhone = async () => {
     setPhoneSaving(true); setPhoneErr('')
     try {
-      await updatePhone(phone.trim())
+      await updatePhone(phone.trim())                                               // يحدّث user_metadata.phone_number
       setPhoneSaved(true)
-      setTimeout(() => setPhoneSaved(false), 2500)
+      setTimeout(() => setPhoneSaved(false), 2500)                                  // أخفِ علامة ✓ بعد 2.5 ثانية
     } catch (e) { setPhoneErr((e as Error).message || t('error')) }
     finally { setPhoneSaving(false) }
   }
@@ -289,31 +295,39 @@ function LanguageSection() {
 function TransferSection() {
   const { user } = useAuth()
   const { t } = useLang()
-  const [rights, setRights] = useState<RightsRow[]>([])
-  const [loading, setLoading] = useState(true)
-  const [selectedId, setSelectedId] = useState('')
-  const [newWallet, setNewWallet] = useState('')
-  const [transferring, setTransferring] = useState(false)
-  const [done, setDone] = useState(false)
-  const [err, setErr] = useState('')
+  const [rights, setRights] = useState<RightsRow[]>([])                            // قائمة شهادات المستخدم من Supabase
+  const [loading, setLoading] = useState(true)                                      // جارٍ تحميل الشهادات
+  const [selectedId, setSelectedId] = useState('')                                  // cert_id الشهادة المختارة للنقل
+  const [newWallet, setNewWallet] = useState('')                                    // عنوان محفظة المالك الجديد (0x...)
+  const [transferring, setTransferring] = useState(false)                           // جارٍ تنفيذ عملية النقل
+  const [done, setDone] = useState(false)                                           // true = ظهرت رسالة النجاح
+  const [err, setErr] = useState('')                                                // رسالة خطأ النقل
 
+  // اجلب شهادات المستخدم فور تحميل القسم
   useEffect(() => {
     if (!user) return
     getUserCerts(user.id)
-      .then(data => { setRights(data); if (data[0]) setSelectedId(data[0].cert_id) })
+      .then(data => {
+        setRights(data)
+        if (data[0]) setSelectedId(data[0].cert_id)                                // اختر الشهادة الأولى تلقائياً
+      })
       .catch(() => {})
       .finally(() => setLoading(false))
   }, [user])
 
+  // ── handleTransfer — نقل ملكية الشهادة ──────────────────────────────────────
+  // الخطوة 1: transferCertOnChain → إرسال معاملة للبلوكشين (يحتاج توقيع MetaMask)
+  // الخطوة 2: تحديث wallet_address في جدول Rights بـ Supabase لمزامنة قاعدة البيانات
   const handleTransfer = async () => {
-    if (!newWallet.trim() || !selectedId) return
+    if (!newWallet.trim() || !selectedId) return                                    // تحقق أن الحقول غير فارغة
     setErr(''); setTransferring(true)
     try {
-      await transferCertOnChain(selectedId, newWallet.trim())
-      await supabase.from('Rights').update({ wallet_address: newWallet.trim() }).eq('cert_id', selectedId)
+      await transferCertOnChain(selectedId, newWallet.trim())                       // ينفّذ transferCertificate على العقد الذكي
+      await supabase.from('Rights').update({ wallet_address: newWallet.trim() }).eq('cert_id', selectedId) // زامن قاعدة البيانات
       setDone(true); setNewWallet('')
-      setTimeout(() => setDone(false), 3000)
+      setTimeout(() => setDone(false), 3000)                                        // أخفِ رسالة النجاح بعد 3 ثوانٍ
     } catch (e) {
+      // "rejected" = المستخدم رفض التوقيع في MetaMask
       setErr((e as Error).message?.includes('rejected') ? 'تم رفض المعاملة من المحفظة' : t('error'))
     } finally { setTransferring(false) }
   }
@@ -352,35 +366,38 @@ function TransferSection() {
 }
 
 /* ─── Main Modal ─────────────────────────────────────────────────────────── */
+// MENU — عناصر القائمة الجانبية: key=اسم القسم، icon=الرمز، tkKey=مفتاح الترجمة
 const MENU: { key: SettingsSection; icon: string; tkKey: string }[] = [
-  { key: 'profile',  icon: '👤', tkKey: 'set.profile'  },
-  { key: 'password', icon: '🔒', tkKey: 'set.password' },
-  { key: 'language', icon: '🌐', tkKey: 'set.language' },
-  { key: 'transfer', icon: '↗️', tkKey: 'set.transfer' },
+  { key: 'profile',  icon: '👤', tkKey: 'set.profile'  },  // الملف الشخصي
+  { key: 'password', icon: '🔒', tkKey: 'set.password' },  // كلمة المرور
+  { key: 'language', icon: '🌐', tkKey: 'set.language' },  // اللغة
+  { key: 'transfer', icon: '↗️', tkKey: 'set.transfer' },  // نقل الملكية
 ]
 
 export default function SettingsModal({ initialSection, onClose }: Props) {
-  const [active, setActive] = useState<SettingsSection>(initialSection)
-  const overlayRef = useRef<HTMLDivElement>(null)
-  const { t, dir } = useLang()
+  const [active, setActive] = useState<SettingsSection>(initialSection)            // القسم النشط حالياً في القائمة
+  const overlayRef = useRef<HTMLDivElement>(null)                                  // مرجع للخلفية الداكنة
+  const { t, dir } = useLang()                                                     // dir = 'rtl' أو 'ltr' يُطبّق على المودال
 
+  // إغلاق المودال بمفتاح Escape
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
     document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)                    // إلغاء الاستماع عند إغلاق المودال
   }, [onClose])
 
   return (
+    // النقر على الخلفية الداكنة (خارج المودال) يغلقه
     <div className="set-overlay" ref={overlayRef} onClick={e => { if (e.target === overlayRef.current) onClose() }}>
       <motion.div
         className="set-modal"
-        style={{ direction: dir }}
+        style={{ direction: dir }}                                                  // تطبيق اتجاه النص (RTL/LTR) على المودال
         initial={{ opacity: 0, scale: 0.96, y: 16 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.96, y: 16 }}
         transition={{ duration: 0.22, ease: EASE }}
       >
-        {/* Header */}
+        {/* ── Header ── */}
         <div className="set-modal-header">
           <h2 className="set-modal-title">{t('set.title')}</h2>
           <button className="set-close" onClick={onClose} aria-label="إغلاق">
@@ -391,13 +408,13 @@ export default function SettingsModal({ initialSection, onClose }: Props) {
         </div>
 
         <div className="set-modal-body">
-          {/* Sidebar */}
+          {/* ── Sidebar — القائمة الجانبية ── */}
           <nav className="set-sidebar">
             {MENU.map(m => (
               <button
                 key={m.key}
-                className={`set-menu-item${active === m.key ? ' set-menu-active' : ''}`}
-                onClick={() => setActive(m.key)}
+                className={`set-menu-item${active === m.key ? ' set-menu-active' : ''}`} // تمييز القسم النشط
+                onClick={() => setActive(m.key)}                                    // تبديل القسم عند النقر
               >
                 <span className="set-menu-icon">{m.icon}</span>
                 <span>{t(m.tkKey)}</span>
@@ -405,19 +422,21 @@ export default function SettingsModal({ initialSection, onClose }: Props) {
             ))}
           </nav>
 
-          {/* Content */}
+          {/* ── Content — محتوى القسم النشط ── */}
           <div className="set-content">
+            {/* AnimatePresence mode="wait" ينتظر خروج القسم القديم قبل دخول الجديد */}
             <AnimatePresence mode="wait">
               <motion.div
-                key={active}
-                initial={{ opacity: 0, x: dir === 'rtl' ? -12 : 12 }}
+                key={active}                                                        // تغيير key يُطلق الأنيميشن من جديد
+                initial={{ opacity: 0, x: dir === 'rtl' ? -12 : 12 }}             // دخول من اليسار في RTL، من اليمين في LTR
                 animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: dir === 'rtl' ? 12 : -12 }}
+                exit={{ opacity: 0, x: dir === 'rtl' ? 12 : -12 }}                // خروج معاكس لاتجاه الدخول
                 transition={{ duration: 0.18, ease: EASE }}
               >
                 <h3 className="set-section-title">
-                  {t(MENU.find(m => m.key === active)?.tkKey ?? '')}
+                  {t(MENU.find(m => m.key === active)?.tkKey ?? '')}               // عنوان القسم النشط
                 </h3>
+                {/* عرض المكوّن المقابل للقسم النشط */}
                 {active === 'profile'  && <ProfileSection />}
                 {active === 'password' && <PasswordSection />}
                 {active === 'language' && <LanguageSection />}
