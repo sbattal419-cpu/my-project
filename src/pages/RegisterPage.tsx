@@ -1,7 +1,7 @@
 import { type FormEvent, useState, useEffect, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { signUp, uploadAvatar } from '../lib/auth'
+import { signUp, signIn, uploadAvatar, verifyEmailOTP, resendVerificationOTP } from '../lib/auth'
 import { useAuth } from '../context/AuthContext'
 import { useLang } from '../context/LanguageContext'
 
@@ -27,8 +27,13 @@ export default function RegisterPage() {
   const [showPwd, setShowPwd] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
   const [error, setError] = useState('')
-  const [success, setSuccess] = useState(false)
+  const [step, setStep] = useState<'form' | 'otp'>('form')
   const [submitting, setSubmitting] = useState(false)
+  const [otp, setOtp] = useState('')
+  const [otpError, setOtpError] = useState('')
+  const [otpLoading, setOtpLoading] = useState(false)
+  const [resendCooldown, setResendCooldown] = useState(0)
+  const otpHiddenRef = useRef<HTMLInputElement>(null)
   const [avatarFile, setAvatarFile] = useState<File | null>(null)
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
   const avatarInputRef = useRef<HTMLInputElement>(null)
@@ -58,7 +63,11 @@ export default function RegisterPage() {
       if (avatarFile && data.user) {
         await uploadAvatar(avatarFile, data.user.id).catch(() => {})
       }
-      setSuccess(true)
+      if (data.session) {
+        navigate('/', { replace: true })
+      } else {
+        setStep('otp')
+      }
     } catch (err) {
       setError(translateError((err as Error).message, lang))
     } finally {
@@ -107,50 +116,108 @@ export default function RegisterPage() {
           </div>
         </div>
 
-        {success ? (
+        {step === 'otp' ? (
           <motion.div
-            className="welcome-card"
+            className="otp-card"
             initial={{ opacity: 0, scale: 0.95, y: 16 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            transition={{ duration: 0.5, ease: 'easeOut' as const }}
+            transition={{ duration: 0.45, ease: 'easeOut' as const }}
           >
-            <div className="welcome-confetti">
-              {['🎉', '✨', '🌟', '🎊', '💫'].map((e, i) => (
-                <motion.span
-                  key={i}
-                  className="welcome-confetti-item"
-                  initial={{ opacity: 0, y: 0, x: 0 }}
-                  animate={{ opacity: [0, 1, 0], y: -40, x: (i - 2) * 18 }}
-                  transition={{ delay: i * 0.1, duration: 1.2, ease: 'easeOut' as const }}
-                >{e}</motion.span>
-              ))}
-            </div>
-
-            <div className="welcome-avatar">
-              {name.trim()[0]?.toUpperCase() ?? '?'}
-            </div>
-
-            <h2 className="welcome-title">
-              {lang === 'en'
-                ? `Welcome${name.trim() ? `, ${name.trim().split(' ')[0]}!` : '!'}`
-                : `أهلاً وسهلاً${name.trim() ? `، ${name.trim().split(' ')[0]}!` : '!'}`}
-            </h2>
-            <p className="welcome-subtitle">{t('register.success')}</p>
-
-            <p className="welcome-email-note">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+            <div className="otp-icon">
+              <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
                 <polyline points="22,6 12,13 2,6"/>
               </svg>
-              {t('register.check.inbox')} <strong>{email}</strong>
+            </div>
+
+            <h2 className="otp-title">
+              {lang === 'ar' ? 'أدخل رمز التحقق' : 'Enter Verification Code'}
+            </h2>
+            <p className="otp-subtitle">
+              {lang === 'ar'
+                ? <>تم إرسال رمز مكوّن من 8 أرقام إلى<br /><strong>{email}</strong></>
+                : <>An 8-digit code was sent to<br /><strong>{email}</strong></>}
             </p>
 
-            <button className="btn-auth" onClick={() => navigate('/login')}>
-              {t('register.goto.login')}
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="15 18 9 12 15 6"/>
-              </svg>
+            <div className="otp-boxes-wrap" onClick={() => otpHiddenRef.current?.focus()}>
+              {Array.from({ length: 8 }, (_, i) => (
+                <div key={i} className={`otp-box${otp[i] ? ' otp-box-filled' : ''}${otp.length === i ? ' otp-box-active' : ''}`}>
+                  {otp[i] || ''}
+                </div>
+              ))}
+              <input
+                ref={otpHiddenRef}
+                type="text"
+                inputMode="numeric"
+                maxLength={8}
+                value={otp}
+                autoFocus
+                autoComplete="one-time-code"
+                onChange={e => {
+                  const v = e.target.value.replace(/\D/g, '').slice(0, 8)
+                  setOtp(v)
+                  setOtpError('')
+                }}
+                style={{ position: 'absolute', opacity: 0, width: 1, height: 1, pointerEvents: 'none' }}
+              />
+            </div>
+
+            {otpError && (
+              <div className="auth-alert auth-alert-error" style={{ marginTop: 0 }}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{ flexShrink: 0 }}>
+                  <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+                {otpError}
+              </div>
+            )}
+
+            <button
+              className="btn-auth"
+              disabled={otp.length !== 8 || otpLoading}
+              onClick={async () => {
+                setOtpLoading(true)
+                setOtpError('')
+                try {
+                  const result = await verifyEmailOTP(email, otp)
+                  if (!result.session) {
+                    await signIn(email, password)
+                  }
+                  navigate('/', { replace: true })
+                } catch {
+                  setOtpError(lang === 'ar' ? 'الرمز غير صحيح أو انتهت صلاحيته' : 'Invalid or expired code')
+                  setOtp('')
+                } finally {
+                  setOtpLoading(false)
+                }
+              }}
+            >
+              {otpLoading
+                ? <><span className="btn-spinner" />{lang === 'ar' ? 'جاري التحقق...' : 'Verifying...'}</>
+                : lang === 'ar' ? 'تحقق ودخول' : 'Verify & Login'}
             </button>
+
+            <div className="otp-resend">
+              {resendCooldown > 0 ? (
+                <span className="otp-resend-wait">
+                  {lang === 'ar' ? `إعادة الإرسال بعد ${resendCooldown}ث` : `Resend in ${resendCooldown}s`}
+                </span>
+              ) : (
+                <button
+                  className="otp-resend-btn"
+                  onClick={async () => {
+                    try {
+                      await resendVerificationOTP(email)
+                      setResendCooldown(60)
+                      const t = setInterval(() => {
+                        setResendCooldown(c => { if (c <= 1) { clearInterval(t); return 0 } return c - 1 })
+                      }, 1000)
+                    } catch { /* ignore */ }
+                  }}
+                >
+                  {lang === 'ar' ? 'لم يصلك الرمز؟ إعادة الإرسال' : "Didn't receive it? Resend"}
+                </button>
+              )}
+            </div>
           </motion.div>
         ) : (
           <>
@@ -292,10 +359,12 @@ export default function RegisterPage() {
           </>
         )}
 
-        <p className="auth-switch">
-          {t('register.has.account')}{' '}
-          <Link to="/login" className="auth-switch-link">{t('register.login.link')}</Link>
-        </p>
+        {step !== 'otp' && (
+          <p className="auth-switch">
+            {t('register.has.account')}{' '}
+            <Link to="/login" className="auth-switch-link">{t('register.login.link')}</Link>
+          </p>
+        )}
       </motion.div>
     </div>
   )

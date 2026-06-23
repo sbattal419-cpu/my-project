@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '../context/AuthContext'
-import { uploadAvatar, updateProfile, updateEmail, updatePassword, verifyCurrentPassword } from '../lib/auth'
+import { uploadAvatar, updateProfile, updateEmail, updatePassword, verifyCurrentPassword, submitKYC, getKYCStatus } from '../lib/auth'
 
 interface Props {
   open: boolean
@@ -43,6 +43,14 @@ export default function AccountSettingsModal({ open, onClose }: Props) {
   const [email, setEmail] = useState('')
   const [emailStatus, setEmailStatus] = useState<SectionStatus>(idle())
 
+  // KYC
+  const [kycNationalId, setKycNationalId] = useState('')
+  const [kycFile, setKycFile] = useState<File | null>(null)
+  const [kycFileName, setKycFileName] = useState('')
+  const [kycStatus, setKycStatus] = useState<{ national_id: string | null; kyc_status: string | null; kyc_note: string | null; id_document_url: string | null } | null>(null)
+  const [kycSectionStatus, setKycSectionStatus] = useState<SectionStatus>(idle())
+  const kycFileRef = useRef<HTMLInputElement>(null)
+
   // Password
   const [newPwd, setNewPwd] = useState('')
   const [confirmPwd, setConfirmPwd] = useState('')
@@ -64,6 +72,11 @@ export default function AccountSettingsModal({ open, onClose }: Props) {
       setAvatarStatus(idle())
       setNewPwd('')
       setConfirmPwd('')
+      setKycNationalId('')
+      setKycFile(null)
+      setKycFileName('')
+      setKycSectionStatus(idle())
+      getKYCStatus().then(s => setKycStatus(s))
     }
   }, [open]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -144,6 +157,31 @@ export default function AccountSettingsModal({ open, onClose }: Props) {
       setEmailStatus({ loading: false, error: 'فشل تحديث البريد الإلكتروني، حاول مجدداً', success: '' })
     }
   }, setEmailStatus)
+
+  // ── KYC ──
+  const handleKYCFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setKycFile(file)
+    setKycFileName(file.name)
+    e.target.value = ''
+  }
+
+  const handleSubmitKYC = async () => {
+    if (!kycNationalId.trim()) { setKycSectionStatus({ loading: false, error: 'يرجى إدخال رقم الهوية الوطنية', success: '' }); return }
+    if (!kycFile) { setKycSectionStatus({ loading: false, error: 'يرجى رفع صورة بطاقة الهوية', success: '' }); return }
+    setKycSectionStatus({ loading: true, error: '', success: '' })
+    try {
+      await submitKYC(kycNationalId, kycFile)
+      setKycStatus({ national_id: kycNationalId, kyc_status: 'pending', kyc_note: null, id_document_url: null })
+      setKycSectionStatus({ loading: false, error: '', success: 'تم إرسال بيانات الهوية، في انتظار مراجعة الإدارة' })
+      setKycNationalId('')
+      setKycFile(null)
+      setKycFileName('')
+    } catch {
+      setKycSectionStatus({ loading: false, error: 'حدث خطأ أثناء الإرسال، يرجى المحاولة مرة أخرى', success: '' })
+    }
+  }
 
   // ── Password ──
   const handleSavePassword = () => withVerify(async () => {
@@ -380,6 +418,118 @@ export default function AccountSettingsModal({ open, onClose }: Props) {
                   </div>
                   {pwdStatus.error && <p className="account-msg account-msg-error">{pwdStatus.error}</p>}
                   {pwdStatus.success && <p className="account-msg account-msg-success">{pwdStatus.success}</p>}
+                </div>
+
+                <div className="account-divider" />
+
+                {/* ── KYC: التحقق من الهوية ── */}
+                <div className="account-section">
+                  <div className="account-section-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="2" y="5" width="20" height="14" rx="2"/><path d="M16 10h.01M8 10h.01M12 14h.01M8 14h.01M16 14h.01"/>
+                    </svg>
+                    التحقق من الهوية الوطنية
+                    {kycStatus?.kyc_status === 'verified' && (
+                      <span style={{ marginRight: 'auto', fontSize: 11, color: '#059669', background: '#ecfdf5', border: '1px solid #bbf7d0', padding: '2px 10px', borderRadius: 20, fontWeight: 600 }}>
+                        ✓ تم التحقق
+                      </span>
+                    )}
+                    {kycStatus?.kyc_status === 'pending' && (
+                      <span style={{ marginRight: 'auto', fontSize: 11, color: '#d97706', background: '#fffbeb', border: '1px solid #fde68a', padding: '2px 10px', borderRadius: 20, fontWeight: 600 }}>
+                        ⏳ قيد المراجعة
+                      </span>
+                    )}
+                  </div>
+
+                  {kycStatus?.kyc_status === 'verified' ? (
+                    <div className="kyc-verified-block">
+                      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/>
+                      </svg>
+                      <div>
+                        <p className="kyc-verified-title">هويتك موثّقة</p>
+                        <p className="kyc-verified-sub">رقم الهوية: <span dir="ltr">{kycStatus.national_id}</span></p>
+                      </div>
+                    </div>
+                  ) : kycStatus?.kyc_status === 'pending' ? (
+                    <div className="kyc-pending-block">
+                      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                      </svg>
+                      <div>
+                        <p className="kyc-pending-title">طلبك قيد المراجعة</p>
+                        <p className="kyc-pending-sub">سيتم إشعارك بعد مراجعة الإدارة لبياناتك</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      {kycStatus?.kyc_status === 'rejected' && (
+                        <div className="kyc-rejected-block">
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>
+                          </svg>
+                          <div>
+                            <p className="kyc-rejected-title">تم رفض الطلب</p>
+                            {kycStatus.kyc_note && <p className="kyc-rejected-note">السبب: {kycStatus.kyc_note}</p>}
+                            <p className="kyc-rejected-sub">يمكنك إعادة الإرسال مع تصحيح البيانات</p>
+                          </div>
+                        </div>
+                      )}
+
+                      <p className="kyc-intro-text">
+                        لحماية حقوقك ومنع التزوير، يرجى رفع صورة بطاقة هويتك الوطنية. تُحفظ بيانات الهوية بشكل آمن ولا تُشارك مع أطراف خارجية.
+                      </p>
+
+                      <div className="account-field-col" style={{ gap: 10 }}>
+                        <div className="form-group" style={{ marginBottom: 0 }}>
+                          <label className="form-label" style={{ fontSize: 13 }}>رقم الهوية الوطنية</label>
+                          <input
+                            type="text"
+                            className="account-input"
+                            placeholder="أدخل رقم الهوية"
+                            value={kycNationalId}
+                            onChange={e => { setKycNationalId(e.target.value); setKycSectionStatus(idle()) }}
+                            dir="ltr"
+                            maxLength={20}
+                          />
+                        </div>
+
+                        <div className="kyc-upload-area" onClick={() => kycFileRef.current?.click()}>
+                          <input ref={kycFileRef} type="file" accept="image/*,application/pdf" hidden onChange={handleKYCFileChange} />
+                          {kycFileName ? (
+                            <>
+                              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><polyline points="9 15 12 18 15 15"/><line x1="12" y1="11" x2="12" y2="18"/>
+                              </svg>
+                              <span className="kyc-upload-name">{kycFileName}</span>
+                              <span className="kyc-upload-change">تغيير</span>
+                            </>
+                          ) : (
+                            <>
+                              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                                <rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/>
+                              </svg>
+                              <span className="kyc-upload-label">اضغط لرفع صورة بطاقة الهوية</span>
+                              <span className="kyc-upload-hint">JPG أو PNG أو PDF</span>
+                            </>
+                          )}
+                        </div>
+
+                        <button
+                          className="account-save-btn account-save-btn-full"
+                          onClick={handleSubmitKYC}
+                          disabled={kycSectionStatus.loading}
+                        >
+                          {kycSectionStatus.loading
+                            ? <><span className="btn-spinner" style={{ width: 14, height: 14, borderWidth: 2 }} />جارٍ الإرسال...</>
+                            : 'إرسال للتحقق'}
+                        </button>
+                      </div>
+
+                      {kycSectionStatus.error && <p className="account-msg account-msg-error" style={{ marginTop: 8 }}>{kycSectionStatus.error}</p>}
+                      {kycSectionStatus.success && <p className="account-msg account-msg-success" style={{ marginTop: 8 }}>{kycSectionStatus.success}</p>}
+                    </>
+                  )}
                 </div>
 
               </div>

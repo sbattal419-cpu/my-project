@@ -1727,6 +1727,104 @@ body {
 .auth-switch-link:hover { color: var(--c-blue-hover); text-decoration: underline; }
 
 /* ── Welcome Card ── */
+/* ── OTP Verification Screen ─────────────────────────────────────────── */
+.otp-card {
+  display: flex; flex-direction: column; align-items: center;
+  text-align: center; padding: 8px 0 4px; gap: 18px;
+}
+
+.otp-icon {
+  width: 68px; height: 68px; border-radius: 50%;
+  background: rgba(59,130,246,0.1);
+  border: 1.5px solid rgba(59,130,246,0.25);
+  display: flex; align-items: center; justify-content: center;
+  margin-top: 8px;
+}
+
+.otp-title {
+  font-size: 20px; font-weight: 800;
+  color: var(--c-gray-900); margin: 0;
+}
+
+.otp-subtitle {
+  font-size: 13.5px; color: var(--c-gray-500);
+  line-height: 1.7; margin: -6px 0 0;
+}
+.otp-subtitle strong { color: var(--c-gray-700); word-break: break-all; }
+
+.otp-input {
+  width: 100%;
+  padding: 14px 8px;
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: 8px;
+  text-align: center;
+  background: rgba(255,255,255,0.04);
+  border: 1.5px solid rgba(255,255,255,0.14);
+  border-radius: 14px;
+  color: #f1f5f9;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  box-sizing: border-box;
+  caret-color: #3b82f6;
+  min-width: 0;
+}
+.otp-input:focus {
+  border-color: rgba(59,130,246,0.6);
+  box-shadow: 0 0 0 3px rgba(59,130,246,0.12);
+}
+.otp-input::placeholder { color: rgba(148,163,184,0.35); letter-spacing: 6px; }
+
+.otp-boxes {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+  width: 100%;
+}
+.otp-box {
+  flex: 1;
+  min-width: 0;
+  height: 52px;
+  font-size: 20px;
+  font-weight: 700;
+  text-align: center;
+  background: rgba(255,255,255,0.05);
+  border: 1.5px solid rgba(255,255,255,0.14);
+  border-radius: 10px;
+  color: #f1f5f9;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  caret-color: #3b82f6;
+  padding: 0;
+}
+.otp-box:focus {
+  border-color: rgba(59,130,246,0.6);
+  box-shadow: 0 0 0 3px rgba(59,130,246,0.12);
+}
+.otp-box.otp-box-filled {
+  border-color: rgba(59,130,246,0.45);
+  background: rgba(59,130,246,0.09);
+}
+.otp-box.otp-box-active {
+  border-color: rgba(59,130,246,0.7);
+  box-shadow: 0 0 0 3px rgba(59,130,246,0.15);
+}
+.otp-boxes-wrap {
+  position: relative;
+  cursor: text;
+  width: 100%;
+}
+
+.otp-resend { font-size: 13px; margin-top: -4px; }
+.otp-resend-wait { color: #64748b; }
+.otp-resend-btn {
+  background: none; border: none; cursor: pointer;
+  color: #60a5fa; font-size: 13px; font-weight: 500;
+  padding: 0; text-decoration: underline; text-underline-offset: 3px;
+}
+.otp-resend-btn:hover { color: #93c5fd; }
+
+/* ── Welcome Card ─────────────────────────────────────────────────────── */
 .welcome-card {
   display: flex; flex-direction: column; align-items: center;
   text-align: center; padding: 4px 0 8px; gap: 14px; position: relative;
@@ -2181,6 +2279,29 @@ body {
 .kyc-privacy svg { flex-shrink: 0; margin-top: 2px; color: var(--c-gray-400); }
 
 .kyc-error { font-size: 13px; color: #f87171; text-align: center; margin: 0; }
+
+.kyc-rejected-notice {
+  display: flex; align-items: flex-start; gap: 10px;
+  background: rgba(239,68,68,0.08);
+  border: 1px solid rgba(239,68,68,0.3);
+  border-radius: 10px; padding: 10px 14px;
+  font-size: 12.5px; color: #fca5a5; line-height: 1.6;
+  margin-bottom: 2px;
+}
+.kyc-rejected-notice svg { flex-shrink: 0; margin-top: 2px; }
+
+.kyc-field-wrap  { display: flex; flex-direction: column; gap: 6px; width: 100%; }
+.kyc-field-label { font-size: 13px; color: #cbd5e1; font-weight: 500; }
+.kyc-field-input {
+  width: 100%; padding: 10px 14px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 10px; color: #f1f5f9; font-size: 14px;
+  outline: none; transition: border-color 0.2s;
+  box-sizing: border-box;
+}
+.kyc-field-input:focus { border-color: rgba(59,130,246,0.5); }
+.kyc-field-input::placeholder { color: #475569; }
 
 .kyc-submit-btn {
   width: 100%;
@@ -3661,12 +3782,35 @@ body {
   color: var(--c-gray-800);
 }
 
+.adm-topbar-end {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
 .adm-user-badge {
   font-size: 13px;
   color: var(--c-gray-500);
   background: var(--c-gray-100);
   padding: 4px 12px;
   border-radius: 20px;
+}
+.adm-logout-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #ef4444;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  padding: 5px 12px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.adm-logout-btn:hover {
+  background: #fee2e2;
+  border-color: #f87171;
 }
 
 .adm-main {
@@ -4761,3 +4905,123 @@ body {
 }
 .account-btn-close:hover { background: rgba(255,255,255,0.1); color: #f1f5f9; }
 .footer-phone:hover { color: #f0c040; }
+
+/* ═══════════════════════════════════════════
+   KYC — Account Settings Modal
+═══════════════════════════════════════════ */
+.kyc-intro-text {
+  font-size: 12.5px;
+  color: #94a3b8;
+  line-height: 1.7;
+  margin: 6px 0 12px;
+}
+
+.kyc-upload-area {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  border: 1.5px dashed rgba(255,255,255,0.14);
+  border-radius: 12px;
+  padding: 18px 16px;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+  color: #94a3b8;
+  text-align: center;
+}
+.kyc-upload-area:hover {
+  border-color: rgba(59,130,246,0.5);
+  background: rgba(59,130,246,0.05);
+}
+.kyc-upload-label { font-size: 13px; color: #cbd5e1; font-weight: 500; }
+.kyc-upload-hint  { font-size: 11px; color: #64748b; }
+.kyc-upload-name  { font-size: 13px; color: #60a5fa; font-weight: 500; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.kyc-upload-change { font-size: 11px; color: #64748b; }
+
+/* Verified block */
+.kyc-verified-block {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: rgba(5,150,105,0.08);
+  border: 1px solid rgba(5,150,105,0.25);
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-top: 8px;
+}
+.kyc-verified-title { font-size: 14px; font-weight: 600; color: #34d399; margin-bottom: 3px; }
+.kyc-verified-sub   { font-size: 12px; color: #6ee7b7; }
+
+/* Pending block */
+.kyc-pending-block {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: rgba(217,119,6,0.08);
+  border: 1px solid rgba(217,119,6,0.25);
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-top: 8px;
+}
+.kyc-pending-title { font-size: 14px; font-weight: 600; color: #fbbf24; margin-bottom: 3px; }
+.kyc-pending-sub   { font-size: 12px; color: #fde68a; }
+
+/* Rejected block */
+.kyc-rejected-block {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  background: rgba(220,38,38,0.08);
+  border: 1px solid rgba(220,38,38,0.25);
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin-bottom: 12px;
+}
+.kyc-rejected-title { font-size: 13px; font-weight: 600; color: #f87171; margin-bottom: 2px; }
+.kyc-rejected-note  { font-size: 12px; color: #fca5a5; margin-bottom: 2px; }
+.kyc-rejected-sub   { font-size: 11.5px; color: #94a3b8; }
+
+/* ═══════════════════════════════════════════
+   KYC — Admin Dashboard
+═══════════════════════════════════════════ */
+.adm-tab-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: #ef4444;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  margin-right: 6px;
+}
+
+.adm-kyc-badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 11.5px;
+  font-weight: 600;
+}
+.adm-kyc-verified { background: rgba(5,150,105,0.12); color: #34d399; border: 1px solid rgba(5,150,105,0.3); }
+.adm-kyc-pending  { background: rgba(217,119,6,0.12);  color: #fbbf24; border: 1px solid rgba(217,119,6,0.3); }
+.adm-kyc-rejected { background: rgba(220,38,38,0.1);   color: #f87171; border: 1px solid rgba(220,38,38,0.25); }
+
+.adm-doc-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #60a5fa;
+  font-size: 12px;
+  font-weight: 500;
+  text-decoration: none;
+  padding: 4px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(96,165,250,0.25);
+  background: rgba(96,165,250,0.07);
+  transition: all 0.2s;
+}
+.adm-doc-link:hover { background: rgba(96,165,250,0.15); border-color: rgba(96,165,250,0.45); }

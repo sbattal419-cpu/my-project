@@ -10,7 +10,7 @@ import { IP_TYPES, BLOCKCHAIN } from '../config/blockchain.config'
 import WalletConnect from '../components/WalletConnect'
 import InfoTip from '../components/InfoTip'
 import { playSuccess, playError } from '../lib/sounds'
-import { uploadIDDocument } from '../lib/auth'
+import { submitKYC, getKYCStatus } from '../lib/auth'
 
 const EASE = 'easeOut' as const
 
@@ -67,12 +67,26 @@ export default function RegisterRightPage() {
   }, [wallet.isConnected, wallet.isSepolia])
 
   // ── KYC gate ──────────────────────────────────────────────────────────────
-  const [kycDone,    setKycDone]    = useState<boolean>(!!(user?.user_metadata?.id_verified))
-  const [kycFile,    setKycFile]    = useState<File | null>(null)
-  const [kycPreview, setKycPreview] = useState<string | null>(null)
-  const [kycLoading, setKycLoading] = useState(false)
-  const [kycError,   setKycError]   = useState<string | null>(null)
+  const [kycStatusVal,  setKycStatusVal]  = useState<string | null>(null)
+  const [kycCheckDone,  setKycCheckDone]  = useState(false)
+  const [kycFile,       setKycFile]       = useState<File | null>(null)
+  const [kycPreview,    setKycPreview]    = useState<string | null>(null)
+  const [kycLoading,    setKycLoading]    = useState(false)
+  const [kycError,      setKycError]      = useState<string | null>(null)
+  const [kycNationalId, setKycNationalId] = useState('')
   const kycInputRef = useRef<HTMLInputElement>(null)
+
+  // تحميل حالة KYC من قاعدة البيانات
+  useEffect(() => {
+    if (!user) return
+    getKYCStatus().then(data => {
+      setKycStatusVal(data?.kyc_status ?? 'none')
+      setKycCheckDone(true)
+    }).catch(() => {
+      setKycStatusVal('none')
+      setKycCheckDone(true)
+    })
+  }, [user])
 
   const handleKycFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0]
@@ -86,19 +100,58 @@ export default function RegisterRightPage() {
 
   const handleKycSubmit = async () => {
     if (!kycFile || !user) return
+    if (!kycNationalId.trim()) { setKycError(lang === 'ar' ? 'يرجى إدخال رقم الهوية الوطنية' : 'Please enter your national ID number'); return }
     setKycLoading(true)
     setKycError(null)
     try {
-      await uploadIDDocument(kycFile, user.id)
-      setKycDone(true)
-    } catch (err) {
-      setKycError(lang === 'ar' ? 'فشل الرفع، يرجى المحاولة مرة أخرى' : 'Upload failed, please try again')
+      await submitKYC(kycNationalId, kycFile)
+      setKycStatusVal('pending')
+    } catch {
+      setKycError(lang === 'ar' ? 'فشل الإرسال، يرجى المحاولة مرة أخرى' : 'Submission failed, please try again')
     } finally {
       setKycLoading(false)
     }
   }
 
-  if (!kycDone) {
+  // انتظار تحميل حالة KYC
+  if (!kycCheckDone) {
+    return (
+      <div className="kyc-page">
+        <div className="kyc-bg-pattern" />
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh' }}>
+          <div className="bc-spinner" />
+        </div>
+      </div>
+    )
+  }
+
+  // إذا كانت الهوية معلقة للمراجعة
+  if (kycStatusVal === 'pending') {
+    return (
+      <div className="kyc-page">
+        <div className="kyc-bg-pattern" />
+        <motion.div className="kyc-card" initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45, ease: EASE }}>
+          <div className="kyc-header">
+            <div className="kyc-shield" style={{ background: 'rgba(217,119,6,0.15)', borderColor: 'rgba(217,119,6,0.4)' }}>
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+              </svg>
+            </div>
+            <h2 className="kyc-title">{lang === 'ar' ? 'طلبك قيد المراجعة' : 'Your Request is Under Review'}</h2>
+            <p className="kyc-subtitle">
+              {lang === 'ar'
+                ? 'تم استلام بيانات هويتك وهي قيد المراجعة من قِبل الإدارة. ستُرسل لك إشعاراً عند الموافقة.'
+                : 'Your identity documents have been received and are under review. You will be notified once approved.'}
+            </p>
+          </div>
+          <Link to="/" className="kyc-back">{lang === 'ar' ? '← العودة للرئيسية' : '← Back to Home'}</Link>
+        </motion.div>
+      </div>
+    )
+  }
+
+  // إذا لم تكن الهوية موثّقة (none أو rejected)
+  if (kycStatusVal !== 'verified') {
     return (
       <div className="kyc-page">
         <div className="kyc-bg-pattern" />
@@ -119,10 +172,20 @@ export default function RegisterRightPage() {
             <h2 className="kyc-title">{lang === 'ar' ? 'التحقق من الهوية مطلوب' : 'Identity Verification Required'}</h2>
             <p className="kyc-subtitle">
               {lang === 'ar'
-                ? 'لحماية حقوق الملكية الفكرية وضمان صحة البيانات، يجب إرفاق صورة هويتك الرسمية قبل التسجيل.'
-                : 'To protect intellectual property rights and ensure data authenticity, a government-issued ID is required before registration.'}
+                ? 'لحماية حقوق الملكية الفكرية ومنع التزوير، يجب إدخال رقم هويتك الوطنية ورفع صورتها.'
+                : 'To protect intellectual property rights and prevent fraud, your national ID is required before registration.'}
             </p>
           </div>
+
+          {/* rejected notice */}
+          {kycStatusVal === 'rejected' && (
+            <div className="kyc-rejected-notice">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>
+              </svg>
+              <span>{lang === 'ar' ? 'تم رفض طلبك السابق. يرجى إعادة الإرسال بمعلومات صحيحة.' : 'Your previous request was rejected. Please resubmit with correct information.'}</span>
+            </div>
+          )}
 
           {/* what's accepted */}
           <div className="kyc-accepted">
@@ -136,6 +199,20 @@ export default function RegisterRightPage() {
                 <span>{item.label}</span>
               </div>
             ))}
+          </div>
+
+          {/* national ID number */}
+          <div className="kyc-field-wrap">
+            <label className="kyc-field-label">{lang === 'ar' ? 'رقم الهوية الوطنية' : 'National ID Number'}</label>
+            <input
+              type="text"
+              className="kyc-field-input"
+              placeholder={lang === 'ar' ? 'أدخل رقم الهوية' : 'Enter your ID number'}
+              value={kycNationalId}
+              onChange={e => { setKycNationalId(e.target.value); setKycError(null) }}
+              dir="ltr"
+              maxLength={20}
+            />
           </div>
 
           {/* upload zone */}
@@ -155,34 +232,32 @@ export default function RegisterRightPage() {
             ) : (
               <>
                 <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="1.5" strokeLinecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                <p className="kyc-upload-hint">{lang === 'ar' ? 'اضغط لاختيار صورة الهوية' : 'Click to upload your ID photo'}</p>
+                <p className="kyc-upload-hint">{lang === 'ar' ? 'اضغط لرفع صورة الهوية' : 'Click to upload your ID photo'}</p>
                 <p className="kyc-upload-sub">{lang === 'ar' ? 'صورة أو PDF — الحد الأقصى 10 ميغابايت' : 'Image or PDF — max 10 MB'}</p>
               </>
             )}
           </button>
 
-          {kycError && (
-            <p className="kyc-error">{kycError}</p>
-          )}
+          {kycError && <p className="kyc-error">{kycError}</p>}
 
           {/* privacy note */}
           <div className="kyc-privacy">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
             <span>
               {lang === 'ar'
-                ? 'صورتك تُخزَّن بشكل مشفّر في قاعدة بيانات خاصة ولن تظهر للعموم أبداً'
-                : 'Your ID is stored encrypted in a private bucket and will never be publicly visible'}
+                ? 'بياناتك تُخزَّن بأمان ولن تُشارك مع أي طرف خارجي'
+                : 'Your data is stored securely and will never be shared with third parties'}
             </span>
           </div>
 
           <button
             className="kyc-submit-btn"
-            disabled={!kycFile || kycLoading}
+            disabled={!kycFile || !kycNationalId.trim() || kycLoading}
             onClick={handleKycSubmit}
           >
             {kycLoading
-              ? <><span className="btn-spinner" />{lang === 'ar' ? 'جاري الرفع...' : 'Uploading...'}</>
-              : lang === 'ar' ? 'تأكيد وإرسال الهوية' : 'Confirm & Submit ID'
+              ? <><span className="btn-spinner" />{lang === 'ar' ? 'جاري الإرسال...' : 'Submitting...'}</>
+              : lang === 'ar' ? 'إرسال للتحقق' : 'Submit for Verification'
             }
           </button>
 

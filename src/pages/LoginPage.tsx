@@ -1,7 +1,7 @@
-import { type FormEvent, useState, useEffect } from 'react'
+import { type FormEvent, useState, useEffect, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { signIn, resetPassword } from '../lib/auth'
+import { signIn, resetPassword, verifyRecoveryOTP, updatePassword } from '../lib/auth'
 import { useAuth } from '../context/AuthContext'
 import { useLang } from '../context/LanguageContext'
 
@@ -28,11 +28,16 @@ export default function LoginPage() {
   const [showPwd, setShowPwd] = useState(false)
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const resetOtpHiddenRef = useRef<HTMLInputElement>(null)
   const [showReset, setShowReset] = useState(false)
   const [resetEmail, setResetEmail] = useState('')
   const [resetSending, setResetSending] = useState(false)
-  const [resetDone, setResetDone] = useState(false)
+  const [resetStep, setResetStep] = useState<'email' | 'otp' | 'password' | 'done'>('email')
+  const [resetOtp, setResetOtp] = useState('')
+  const [resetNewPwd, setResetNewPwd] = useState('')
+  const [resetConfirmPwd, setResetConfirmPwd] = useState('')
   const [resetError, setResetError] = useState('')
+  const [resetResend, setResetResend] = useState(0)
 
   useEffect(() => {
     if (!loading && user) navigate('/', { replace: true })
@@ -158,7 +163,7 @@ export default function LoginPage() {
             </div>
           </div>
 
-          <button type="button" className="form-forgot" onClick={() => { setShowReset(true); setResetEmail(email); setResetDone(false); setResetError('') }}>
+          <button type="button" className="form-forgot" onClick={() => { setShowReset(true); setResetEmail(email); setResetStep('email'); setResetOtp(''); setResetNewPwd(''); setResetConfirmPwd(''); setResetError(''); setResetResend(0) }}>
             {t('login.forgot')}
           </button>
 
@@ -187,19 +192,129 @@ export default function LoginPage() {
               </button>
             </div>
 
-            {resetDone ? (
+            {resetStep === 'done' ? (
               <div className="reset-success">
                 <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2" strokeLinecap="round">
                   <circle cx="12" cy="12" r="10"/><polyline points="9 12 11 14 15 10"/>
                 </svg>
-                <p>{t('reset.done.msg')}</p>
-                <p className="reset-sub">{t('reset.done.sub')}</p>
+                <p>تم تغيير كلمة المرور بنجاح</p>
+                <p className="reset-sub">يمكنك الآن تسجيل الدخول بكلمة مرورك الجديدة</p>
               </div>
+
+            ) : resetStep === 'otp' ? (
+              <>
+                <p style={{ fontSize: 13.5, color: 'var(--c-gray-500)', lineHeight: 1.6 }}>
+                  تم إرسال رمز الاستعادة إلى<br />
+                  <strong style={{ color: 'var(--c-gray-700)', wordBreak: 'break-all' }}>{resetEmail}</strong>
+                </p>
+                <div className="otp-boxes-wrap" onClick={() => resetOtpHiddenRef.current?.focus()}>
+                  <div className="otp-boxes">
+                    {Array.from({ length: 8 }, (_, i) => (
+                      <div key={i} className={`otp-box${resetOtp[i] ? ' otp-box-filled' : ''}${resetOtp.length === i ? ' otp-box-active' : ''}`}>
+                        {resetOtp[i] || ''}
+                      </div>
+                    ))}
+                  </div>
+                  <input
+                    ref={resetOtpHiddenRef}
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={8}
+                    value={resetOtp}
+                    autoFocus
+                    autoComplete="one-time-code"
+                    onChange={e => { const v = e.target.value.replace(/\D/g, '').slice(0, 8); setResetOtp(v); setResetError('') }}
+                    style={{ position: 'absolute', opacity: 0, width: 1, height: 1, pointerEvents: 'none' }}
+                  />
+                </div>
+                {resetError && <p style={{ fontSize: 13, color: '#ef4444', margin: 0 }}>{resetError}</p>}
+                <button
+                  className="btn-auth"
+                  disabled={resetOtp.length !== 8 || resetSending}
+                  onClick={async () => {
+                    setResetSending(true)
+                    setResetError('')
+                    try {
+                      await verifyRecoveryOTP(resetEmail.trim(), resetOtp)
+                      setResetStep('password')
+                    } catch {
+                      setResetError('الرمز غير صحيح أو انتهت صلاحيته')
+                      setResetOtp('')
+                    } finally {
+                      setResetSending(false)
+                    }
+                  }}
+                >
+                  {resetSending ? <><span className="btn-spinner" />جاري التحقق...</> : 'تحقق من الرمز'}
+                </button>
+                <div className="otp-resend">
+                  {resetResend > 0
+                    ? <span className="otp-resend-wait">إعادة الإرسال بعد {resetResend}ث</span>
+                    : <button className="otp-resend-btn" onClick={async () => {
+                        try {
+                          await resetPassword(resetEmail.trim())
+                          setResetResend(60)
+                          const timer = setInterval(() => setResetResend(c => { if (c <= 1) { clearInterval(timer); return 0 } return c - 1 }), 1000)
+                        } catch { /* ignore */ }
+                      }}>لم يصلك الرمز؟ إعادة الإرسال</button>
+                  }
+                </div>
+              </>
+
+            ) : resetStep === 'password' ? (
+              <>
+                <p style={{ fontSize: 13.5, color: 'var(--c-gray-500)' }}>أدخل كلمة مرورك الجديدة</p>
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label">كلمة المرور الجديدة</label>
+                  <input
+                    type="password"
+                    className="form-input"
+                    placeholder="••••••••  (8 أحرف على الأقل)"
+                    value={resetNewPwd}
+                    onChange={e => { setResetNewPwd(e.target.value); setResetError('') }}
+                    dir="ltr"
+                    autoFocus
+                  />
+                </div>
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label">تأكيد كلمة المرور</label>
+                  <input
+                    type="password"
+                    className="form-input"
+                    placeholder="••••••••"
+                    value={resetConfirmPwd}
+                    onChange={e => { setResetConfirmPwd(e.target.value); setResetError('') }}
+                    dir="ltr"
+                  />
+                </div>
+                {resetError && <p style={{ fontSize: 13, color: '#ef4444', margin: 0 }}>{resetError}</p>}
+                <button
+                  className="btn-auth"
+                  disabled={resetSending || !resetNewPwd}
+                  onClick={async () => {
+                    if (resetNewPwd.length < 8) { setResetError('كلمة المرور يجب أن تكون 8 أحرف على الأقل'); return }
+                    if (resetNewPwd !== resetConfirmPwd) { setResetError('كلمتا المرور غير متطابقتين'); return }
+                    setResetSending(true)
+                    setResetError('')
+                    try {
+                      await updatePassword(resetNewPwd)
+                      setResetStep('done')
+                    } catch {
+                      setResetError('حدث خطأ، يرجى المحاولة مرة أخرى')
+                    } finally {
+                      setResetSending(false)
+                    }
+                  }}
+                >
+                  {resetSending ? <><span className="btn-spinner" />جاري الحفظ...</> : 'حفظ كلمة المرور'}
+                </button>
+              </>
+
             ) : (
               <>
-                <p style={{ fontSize: 14, color: 'var(--c-gray-500)' }}>{t('reset.desc')}</p>
+                <p style={{ fontSize: 14, color: 'var(--c-gray-500)' }}>أدخل بريدك الإلكتروني وسنرسل لك رمز الاستعادة فوراً</p>
                 <div className="form-group" style={{ margin: 0 }}>
-                  <label className="form-label">{t('reset.email') || t('login.email')}</label>
+                  <label className="form-label">البريد الإلكتروني</label>
                   <input
                     type="email"
                     className="form-input"
@@ -207,9 +322,10 @@ export default function LoginPage() {
                     value={resetEmail}
                     onChange={e => setResetEmail(e.target.value)}
                     dir="ltr"
+                    autoFocus
                   />
                 </div>
-                {resetError && <p style={{ fontSize: 13, color: '#ef4444' }}>{resetError}</p>}
+                {resetError && <p style={{ fontSize: 13, color: '#ef4444', margin: 0 }}>{resetError}</p>}
                 <button
                   className="btn-auth"
                   disabled={resetSending || !resetEmail.trim()}
@@ -218,15 +334,23 @@ export default function LoginPage() {
                     setResetError('')
                     try {
                       await resetPassword(resetEmail.trim())
-                      setResetDone(true)
+                      setResetStep('otp')
+                      setResetResend(60)
+                      const timer = setInterval(() => setResetResend(c => { if (c <= 1) { clearInterval(timer); return 0 } return c - 1 }), 1000)
                     } catch (err) {
-                      setResetError((err as Error).message || t('reset.err'))
+                      const msg = (err as Error).message ?? ''
+                      if (msg.includes('60 seconds') || msg.includes('rate limit') || msg.includes('security purposes'))
+                        setResetError('يرجى الانتظار دقيقة واحدة قبل إعادة المحاولة')
+                      else if (msg.includes('invalid') || msg.includes('not found'))
+                        setResetError('هذا البريد الإلكتروني غير مسجّل')
+                      else
+                        setResetError(`خطأ: ${msg}`)
                     } finally {
                       setResetSending(false)
                     }
                   }}
                 >
-                  {resetSending ? <><span className="btn-spinner" />{t('reset.btn.loading')}</> : t('reset.btn')}
+                  {resetSending ? <><span className="btn-spinner" />جاري الإرسال...</> : 'إرسال رمز الاستعادة'}
                 </button>
               </>
             )}

@@ -60,11 +60,34 @@ export async function verifyCurrentPassword(email: string, password: string) {
   if (error) throw new Error('كلمة المرور الحالية غير صحيحة')
 }
 
-export async function resetPassword(email: string) {
-  const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${window.location.origin}/reset-password`,
+export async function verifyEmailOTP(email: string, token: string) {
+  const { data, error } = await supabase.auth.verifyOtp({
+    email,
+    token,
+    type: 'signup',
   })
   if (error) throw error
+  return data
+}
+
+export async function resendVerificationOTP(email: string) {
+  const { error } = await supabase.auth.resend({ type: 'signup', email })
+  if (error) throw error
+}
+
+export async function resetPassword(email: string) {
+  const { error } = await supabase.auth.resetPasswordForEmail(email)
+  if (error) throw error
+}
+
+export async function verifyRecoveryOTP(email: string, token: string) {
+  const { data, error } = await supabase.auth.verifyOtp({
+    email,
+    token,
+    type: 'recovery',
+  })
+  if (error) throw error
+  return data
 }
 
 export async function updateEmail(newEmail: string) {
@@ -90,4 +113,49 @@ export async function uploadIDDocument(file: File, userId: string): Promise<void
     data: { id_verified: true, id_uploaded_at: new Date().toISOString() },
   })
   if (updateError) throw updateError
+}
+
+export async function submitKYC(nationalId: string, documentFile: File): Promise<void> {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('يجب تسجيل الدخول أولاً')
+
+  const ext  = documentFile.name.split('.').pop() ?? 'jpg'
+  const path = `${user.id}/id-kyc.${ext}`
+
+  const { error: uploadErr } = await supabase.storage
+    .from('id-documents')
+    .upload(path, documentFile, { upsert: true, contentType: documentFile.type })
+  if (uploadErr) throw uploadErr
+
+  const { data: urlData } = supabase.storage.from('id-documents').getPublicUrl(path)
+
+  const { error: dbErr } = await supabase
+    .from('profiles')
+    .update({
+      national_id:      nationalId.trim(),
+      id_document_url:  urlData.publicUrl,
+      kyc_status:       'pending',
+      kyc_submitted_at: new Date().toISOString(),
+      kyc_note:         null,
+    })
+    .eq('auth_user_id', user.id)
+  if (dbErr) throw dbErr
+}
+
+export async function getKYCStatus(): Promise<{
+  national_id: string | null
+  kyc_status: string | null
+  kyc_note: string | null
+  id_document_url: string | null
+} | null> {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return null
+
+  const { data } = await supabase
+    .from('profiles')
+    .select('national_id, kyc_status, kyc_note, id_document_url')
+    .eq('auth_user_id', user.id)
+    .single()
+
+  return data
 }
