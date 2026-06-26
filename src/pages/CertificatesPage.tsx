@@ -161,12 +161,14 @@ export default function CertificatesPage() {
   // loadCerts — جلب الشهادات من Supabase أو البلوكشين
   // إذا user موجود → getUserCerts من Supabase (أسرع وأكمل بيانات)
   // إذا لا user → fetchOwnerCertificates من البلوكشين (بعنوان المحفظة)
+  const userId = user?.id ?? null
+
   const loadCerts = useCallback(async () => {
     setLoading(true)
     setLoadError(null)
     try {
-      if (user) {
-        const rows = await getUserCerts(user.id)
+      if (userId) {
+        const rows = await getUserCerts(userId)
         setSource('supabase')
         setCerts(rows.map((r: RightsRow) => ({
           certId:       r.cert_id,
@@ -189,13 +191,13 @@ export default function CertificatesPage() {
     } finally {
       setLoading(false)
     }
-  }, [user, wallet.address])
+  }, [userId, wallet.address])
 
   useEffect(() => {
-    if (user || (isReady && wallet.address)) {
+    if (userId || (isReady && wallet.address)) {
       loadCerts()
     }
-  }, [user, isReady, wallet.address])
+  }, [userId, isReady, wallet.address])
 
   // handleTransfer — نقل ملكية شهادة على البلوكشين
   // يستدعي transferCertOnChain ثم يُعيد تحميل الشهادات
