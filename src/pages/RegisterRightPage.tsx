@@ -263,10 +263,11 @@ export default function RegisterRightPage() {
               <label className="kyc-field-label">{lang === 'ar' ? 'رقم الهوية الوطنية' : 'National ID Number'}</label>
               <input
                 type="text"
+                inputMode="numeric"
                 className="kyc-field-input"
                 placeholder={lang === 'ar' ? 'أدخل رقم الهوية' : 'Enter your ID number'}
                 value={kycNationalId}
-                onChange={e => { setKycNationalId(e.target.value); setKycError(null) }}
+                onChange={e => { setKycNationalId(e.target.value.replace(/\D/g, '')); setKycError(null) }}
                 dir="ltr"
                 maxLength={20}
               />

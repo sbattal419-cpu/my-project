@@ -2322,14 +2322,14 @@ body {
 .kyc-field-label { font-size: 13px; color: #cbd5e1; font-weight: 500; }
 .kyc-field-input {
   width: 100%; padding: 10px 14px;
-  background: rgba(255,255,255,0.05);
-  border: 1px solid rgba(255,255,255,0.12);
-  border-radius: 10px; color: #f1f5f9; font-size: 14px;
+  background: #fff;
+  border: 1.5px solid #d1d5db;
+  border-radius: 10px; color: #1e293b; font-size: 14px;
   outline: none; transition: border-color 0.2s;
   box-sizing: border-box;
 }
-.kyc-field-input:focus { border-color: rgba(59,130,246,0.5); }
-.kyc-field-input::placeholder { color: #475569; }
+.kyc-field-input:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.12); }
+.kyc-field-input::placeholder { color: #9ca3af; }
 
 .kyc-submit-btn {
   width: 100%;
