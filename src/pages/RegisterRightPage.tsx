@@ -92,6 +92,36 @@ export default function RegisterRightPage() {
   const [kycNationalId, setKycNationalId] = useState('')                  // رقم الهوية الوطنية
   const kycInputRef = useRef<HTMLInputElement>(null)                      // مرجع input رفع الهوية
 
+  // ════════════════════════════════════════════════════════════════
+  // SECTION: MAIN FORM STATE — يجب أن تكون هنا قبل أي return
+  // ════════════════════════════════════════════════════════════════
+  const [step, setStep] = useState<Step>('form')
+  const [form, setForm] = useState<FormData>({
+    title: '', ipType: 0, description: '', holderName: '', holderEmail: '',
+    workType: '', publicationDate: '',
+    niceClass: '', logoDescription: '',
+    technicalField: '', inventors: '', claims: '',
+  })
+  const [processing, setProcessing] = useState(false)
+  const [error, setError]           = useState<string | null>(null)
+  const [result, setResult]         = useState<Result | null>(null)
+  const [file, setFile]             = useState<File | null>(null)
+  const [fileHash, setFileHash]     = useState<string | null>(null)
+  const [pHash,    setPHash]        = useState<string | null>(null)
+  const [hashing,  setHashing]      = useState(false)
+  const [checking, setChecking]     = useState(false)
+
+  // ملء اسم وإيميل المستخدم تلقائياً من بيانات الحساب
+  useEffect(() => {
+    const savedName  = user?.user_metadata?.full_name as string | undefined
+    const savedEmail = user?.email as string | undefined
+    setForm(f => ({
+      ...f,
+      holderName:  f.holderName  || savedName  || '',
+      holderEmail: f.holderEmail || savedEmail || '',
+    }))
+  }, [user])
+
   // جلب حالة KYC من جدول profiles في Supabase
   useEffect(() => {
     if (!user) return
@@ -288,24 +318,6 @@ export default function RegisterRightPage() {
   // SECTION: MAIN FORM — يظهر فقط إذا kycStatusVal === 'verified'
   // للتعديل: ابحث عن MAIN FORM
   // ════════════════════════════════════════════════════════════════
-  const [step, setStep] = useState<Step>('form')         // المرحلة الحالية
-  const [form, setForm] = useState<FormData>({
-    title: '', ipType: 0, description: '', holderName: '', holderEmail: '',
-    workType: '', publicationDate: '',
-    niceClass: '', logoDescription: '',
-    technicalField: '', inventors: '', claims: '',
-  })
-
-  // ملء اسم وإيميل المستخدم تلقائياً من بيانات الحساب
-  useEffect(() => {
-    const savedName = user?.user_metadata?.full_name as string | undefined
-    const savedEmail = user?.email as string | undefined
-    setForm(f => ({
-      ...f,
-      holderName: f.holderName || savedName || '',
-      holderEmail: f.holderEmail || savedEmail || '',
-    }))
-  }, [user])
 
   // buildExtraFields — يبني كائن الحقول الإضافية حسب نوع الحق
   // يُستخدم عند حفظ الشهادة في Supabase → saveCertToSupabase
@@ -336,16 +348,6 @@ export default function RegisterRightPage() {
     if (form.ipType === 2) return !!(form.technicalField.trim() && form.inventors.trim() && form.claims.trim())
     return true
   }
-
-  // ── حالة المعالجة والنتيجة ────────────────────────────────────
-  const [processing, setProcessing] = useState(false)      // جاري التسجيل على البلوكشين
-  const [error, setError]           = useState<string | null>(null)
-  const [result, setResult]         = useState<Result | null>(null) // نتيجة التسجيل الناجح
-  const [file, setFile]             = useState<File | null>(null)   // الملف المرفوع
-  const [fileHash, setFileHash]     = useState<string | null>(null) // SHA-256 للملف
-  const [pHash,    setPHash]        = useState<string | null>(null) // Perceptual Hash للصور
-  const [hashing,  setHashing]      = useState(false)               // جاري حساب الهاش
-  const [checking, setChecking]     = useState(false)               // جاري فحص التكرار
 
   // ════════════════════════════════════════════════════════════════
   // SECTION: HANDLERS — وظائف التعامل مع الأحداث
