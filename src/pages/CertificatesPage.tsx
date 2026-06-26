@@ -185,17 +185,17 @@ export default function CertificatesPage() {
         setCerts(data)
       }
     } catch (err) {
-      setLoadError((err as Error).message || t('my.err.load'))
+      setLoadError((err as Error).message || 'فشل تحميل الشهادات')
     } finally {
       setLoading(false)
     }
-  }, [user, wallet.address, t])
+  }, [user, wallet.address])
 
   useEffect(() => {
     if (user || (isReady && wallet.address)) {
       loadCerts()
     }
-  }, [user, isReady, wallet.address, loadCerts])
+  }, [user, isReady, wallet.address])
 
   // handleTransfer — نقل ملكية شهادة على البلوكشين
   // يستدعي transferCertOnChain ثم يُعيد تحميل الشهادات
