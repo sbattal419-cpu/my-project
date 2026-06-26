@@ -95,6 +95,20 @@ export default function AdminDashboard() {
   const [kycActionLoading, setKycActionLoading] = useState<number | null>(null)
   const [kycRejectModal,   setKycRejectModal]   = useState<{ user: UserRow } | null>(null)
   const [kycRejectNote,    setKycRejectNote]    = useState('')
+  const [kycImageModal, setKycImageModal] = useState<{ url: string; loading: boolean } | null>(null)
+
+  const handleViewKYCImage = async (docUrl: string) => {
+    setKycImageModal({ url: '', loading: true })
+    try {
+      const pathPart = docUrl.split('/id-documents/')[1]
+      if (!pathPart) { setKycImageModal({ url: docUrl, loading: false }); return }
+      const { data, error } = await supabase.storage.from('id-documents').createSignedUrl(pathPart, 3600)
+      if (error || !data) { setKycImageModal({ url: docUrl, loading: false }); return }
+      setKycImageModal({ url: data.signedUrl, loading: false })
+    } catch {
+      setKycImageModal({ url: docUrl, loading: false })
+    }
+  }
 
   // ── فحص صلاحية الأدمن من جدول profiles ──────────────────────
   // يقرأ profiles.role للمستخدم الحالي → 'admin' يعطي صلاحية الوصول
@@ -322,6 +336,38 @@ export default function AdminDashboard() {
         </div>
       )}
 
+      {/* KYC Image Modal */}
+      {kycImageModal && (
+        <div className="adm-overlay" onClick={() => setKycImageModal(null)}>
+          <div className="adm-modal" style={{ maxWidth: 620 }} onClick={e => e.stopPropagation()}>
+            <div className="adm-modal-header">
+              <span className="adm-modal-title">صورة الهوية</span>
+              <button className="wsm-close" onClick={() => setKycImageModal(null)}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              </button>
+            </div>
+            <div style={{ textAlign: 'center', padding: '12px 0' }}>
+              {kycImageModal.loading ? (
+                <div className="bc-spinner" style={{ margin: '40px auto' }} />
+              ) : kycImageModal.url.toLowerCase().endsWith('.pdf') ? (
+                <a href={kycImageModal.url} target="_blank" rel="noreferrer" className="adm-doc-link" style={{ fontSize: 16 }}>
+                  فتح ملف PDF
+                </a>
+              ) : (
+                <img
+                  src={kycImageModal.url}
+                  alt="صورة الهوية"
+                  style={{ maxWidth: '100%', maxHeight: '70vh', borderRadius: 8, border: '1px solid #e2e8f0' }}
+                  onError={e => { (e.target as HTMLImageElement).src = ''; }}
+                />
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* KYC Reject Modal */}
       {kycRejectModal && (
         <div className="adm-overlay" onClick={() => setKycRejectModal(null)}>
@@ -436,12 +482,12 @@ export default function AdminDashboard() {
                     <td className="adm-td-mono" dir="ltr">{u.national_id || '—'}</td>
                     <td>
                       {u.id_document_url ? (
-                        <a href={u.id_document_url} target="_blank" rel="noreferrer" className="adm-doc-link">
+                        <button className="adm-doc-link" style={{ background: 'none', border: 'none', cursor: 'pointer' }} onClick={() => handleViewKYCImage(u.id_document_url!)}>
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
                           </svg>
                           عرض
-                        </a>
+                        </button>
                       ) : '—'}
                     </td>
                     <td>
