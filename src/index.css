@@ -2262,6 +2262,19 @@ body {
   padding: 6px 14px;
   font-size: 13px;
   color: var(--c-gray-300);
+  cursor: pointer;
+  transition: background .18s, border-color .18s, color .18s;
+}
+.kyc-accepted-item:hover {
+  background: rgba(37,99,235,.14);
+  border-color: rgba(37,99,235,.4);
+  color: #93c5fd;
+}
+.kyc-accepted-item--active {
+  background: rgba(37,99,235,.22);
+  border-color: #3b82f6;
+  color: #fff;
+  font-weight: 600;
 }
 
 .kyc-upload-zone {

@@ -90,6 +90,7 @@ export default function RegisterRightPage() {
   const [kycLoading,    setKycLoading]    = useState(false)               // جاري إرسال KYC
   const [kycError,      setKycError]      = useState<string | null>(null) // رسالة خطأ KYC
   const [kycNationalId, setKycNationalId] = useState('')                  // رقم الهوية الوطنية
+  const [kycDocType,    setKycDocType]    = useState<'national_id' | 'passport' | 'driving_license'>('national_id')
   const kycInputRef = useRef<HTMLInputElement>(null)                      // مرجع input رفع الهوية
 
   // ════════════════════════════════════════════════════════════════
@@ -234,17 +235,22 @@ export default function RegisterRightPage() {
             </div>
           )}
 
-          {/* أنواع الوثائق المقبولة */}
+          {/* أنواع الوثائق المقبولة — قابلة للتحديد */}
           <div className="kyc-accepted">
-            {[
-              { icon: '🪪', label: lang === 'ar' ? 'بطاقة هوية وطنية' : 'National ID Card' },
-              { icon: '📘', label: lang === 'ar' ? 'جواز سفر' : 'Passport' },
-              { icon: '🚗', label: lang === 'ar' ? 'رخصة قيادة' : 'Driver\'s License' },
-            ].map(item => (
-              <div key={item.label} className="kyc-accepted-item">
+            {([
+              { key: 'national_id',      icon: '🪪', label: lang === 'ar' ? 'بطاقة هوية وطنية' : 'National ID Card' },
+              { key: 'passport',         icon: '📘', label: lang === 'ar' ? 'جواز سفر'          : 'Passport' },
+              { key: 'driving_license',  icon: '🚗', label: lang === 'ar' ? 'رخصة قيادة'        : 'Driver\'s License' },
+            ] as const).map(item => (
+              <button
+                key={item.key}
+                type="button"
+                className={`kyc-accepted-item${kycDocType === item.key ? ' kyc-accepted-item--active' : ''}`}
+                onClick={() => { setKycDocType(item.key); setKycFile(null); setKycPreview(null); setKycError(null) }}
+              >
                 <span>{item.icon}</span>
                 <span>{item.label}</span>
-              </div>
+              </button>
             ))}
           </div>
 
@@ -263,27 +269,41 @@ export default function RegisterRightPage() {
           </div>
 
           {/* منطقة رفع صورة الهوية */}
-          <input ref={kycInputRef} type="file" hidden accept="image/*,.pdf" onChange={handleKycFile} />
-          <button
-            type="button"
-            className={`kyc-upload-zone${kycFile ? ' kyc-upload-zone--has' : ''}`}
-            onClick={() => kycInputRef.current?.click()}
-          >
-            {kycPreview ? (
-              <img src={kycPreview} alt="preview" className="kyc-preview-img" />
-            ) : kycFile ? (
+          {(() => {
+            const docLabels = {
+              national_id:     lang === 'ar' ? 'صورة بطاقة الهوية الوطنية' : 'National ID Card photo',
+              passport:        lang === 'ar' ? 'صورة جواز السفر'            : 'Passport photo',
+              driving_license: lang === 'ar' ? 'صورة رخصة القيادة'          : 'Driving license photo',
+            }
+            const hint = lang === 'ar'
+              ? `اضغط لرفع ${docLabels[kycDocType]}`
+              : `Click to upload your ${docLabels[kycDocType]}`
+            return (
               <>
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2" strokeLinecap="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>
-                <span className="kyc-filename">{kycFile.name}</span>
+                <input ref={kycInputRef} type="file" hidden accept="image/*,.pdf" onChange={handleKycFile} />
+                <button
+                  type="button"
+                  className={`kyc-upload-zone${kycFile ? ' kyc-upload-zone--has' : ''}`}
+                  onClick={() => kycInputRef.current?.click()}
+                >
+                  {kycPreview ? (
+                    <img src={kycPreview} alt="preview" className="kyc-preview-img" />
+                  ) : kycFile ? (
+                    <>
+                      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2" strokeLinecap="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>
+                      <span className="kyc-filename">{kycFile.name}</span>
+                    </>
+                  ) : (
+                    <>
+                      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="1.5" strokeLinecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                      <p className="kyc-upload-hint">{hint}</p>
+                      <p className="kyc-upload-sub">{lang === 'ar' ? 'صورة أو PDF — الحد الأقصى 10 ميغابايت' : 'Image or PDF — max 10 MB'}</p>
+                    </>
+                  )}
+                </button>
               </>
-            ) : (
-              <>
-                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="1.5" strokeLinecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                <p className="kyc-upload-hint">{lang === 'ar' ? 'اضغط لرفع صورة الهوية' : 'Click to upload your ID photo'}</p>
-                <p className="kyc-upload-sub">{lang === 'ar' ? 'صورة أو PDF — الحد الأقصى 10 ميغابايت' : 'Image or PDF — max 10 MB'}</p>
-              </>
-            )}
-          </button>
+            )
+          })()}
 
           {kycError && <p className="kyc-error">{kycError}</p>}
 
