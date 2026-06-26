@@ -149,7 +149,10 @@ export default function RegisterRightPage() {
   // handleKycSubmit — رفع ملف الهوية والرقم الوطني إلى Supabase Storage + profiles
   const handleKycSubmit = async () => {
     if (!kycFile || !user) return
-    if (!kycNationalId.trim()) { setKycError(lang === 'ar' ? 'يرجى إدخال رقم الهوية الوطنية' : 'Please enter your national ID number'); return }
+    if (kycDocType === 'national_id' && !kycNationalId.trim()) {
+      setKycError(lang === 'ar' ? 'يرجى إدخال رقم الهوية الوطنية' : 'Please enter your national ID number')
+      return
+    }
     setKycLoading(true)
     setKycError(null)
     try {
@@ -246,7 +249,7 @@ export default function RegisterRightPage() {
                 key={item.key}
                 type="button"
                 className={`kyc-accepted-item${kycDocType === item.key ? ' kyc-accepted-item--active' : ''}`}
-                onClick={() => { setKycDocType(item.key); setKycFile(null); setKycPreview(null); setKycError(null) }}
+                onClick={() => { setKycDocType(item.key); setKycFile(null); setKycPreview(null); setKycError(null); setKycNationalId('') }}
               >
                 <span>{item.icon}</span>
                 <span>{item.label}</span>
@@ -254,19 +257,21 @@ export default function RegisterRightPage() {
             ))}
           </div>
 
-          {/* حقل رقم الهوية الوطنية */}
-          <div className="kyc-field-wrap">
-            <label className="kyc-field-label">{lang === 'ar' ? 'رقم الهوية الوطنية' : 'National ID Number'}</label>
-            <input
-              type="text"
-              className="kyc-field-input"
-              placeholder={lang === 'ar' ? 'أدخل رقم الهوية' : 'Enter your ID number'}
-              value={kycNationalId}
-              onChange={e => { setKycNationalId(e.target.value); setKycError(null) }}
-              dir="ltr"
-              maxLength={20}
-            />
-          </div>
+          {/* حقل رقم الهوية — يظهر فقط عند اختيار بطاقة الهوية الوطنية */}
+          {kycDocType === 'national_id' && (
+            <div className="kyc-field-wrap">
+              <label className="kyc-field-label">{lang === 'ar' ? 'رقم الهوية الوطنية' : 'National ID Number'}</label>
+              <input
+                type="text"
+                className="kyc-field-input"
+                placeholder={lang === 'ar' ? 'أدخل رقم الهوية' : 'Enter your ID number'}
+                value={kycNationalId}
+                onChange={e => { setKycNationalId(e.target.value); setKycError(null) }}
+                dir="ltr"
+                maxLength={20}
+              />
+            </div>
+          )}
 
           {/* منطقة رفع صورة الهوية */}
           {(() => {
@@ -319,7 +324,7 @@ export default function RegisterRightPage() {
           {/* زر الإرسال — معطّل حتى يُرفع ملف ويُدخل رقم الهوية */}
           <button
             className="kyc-submit-btn"
-            disabled={!kycFile || !kycNationalId.trim() || kycLoading}
+            disabled={!kycFile || (kycDocType === 'national_id' && !kycNationalId.trim()) || kycLoading}
             onClick={handleKycSubmit}
           >
             {kycLoading
