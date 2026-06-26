@@ -2302,9 +2302,9 @@ body {
   border: 1px solid var(--c-border);
   border-radius: 10px;
   padding: 12px 14px;
-  font-size: 12px; color: var(--c-gray-400); line-height: 1.6;
+  font-size: 12px; color: var(--c-blue); line-height: 1.6;
 }
-.kyc-privacy svg { flex-shrink: 0; margin-top: 2px; color: var(--c-gray-400); }
+.kyc-privacy svg { flex-shrink: 0; margin-top: 2px; color: var(--c-blue); }
 
 .kyc-error { font-size: 13px; color: #f87171; text-align: center; margin: 0; }
 
