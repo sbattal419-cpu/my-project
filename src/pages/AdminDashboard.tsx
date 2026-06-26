@@ -91,10 +91,12 @@ export default function AdminDashboard() {
   const [actionLoading, setActionLoading] = useState<number | null>(null) // id الصف الذي يُعالَج
   const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null)
 
-  // ── حالة مودال رفض KYC ────────────────────────────────────────
+  // ── حالة مودال رفض/حذف KYC ───────────────────────────────────
   const [kycActionLoading, setKycActionLoading] = useState<number | null>(null)
   const [kycRejectModal,   setKycRejectModal]   = useState<{ user: UserRow } | null>(null)
   const [kycRejectNote,    setKycRejectNote]    = useState('')
+  const [kycRevokeModal,   setKycRevokeModal]   = useState<{ user: UserRow } | null>(null)
+  const [kycRevokeNote,    setKycRevokeNote]    = useState('')
   const [kycImageModal, setKycImageModal] = useState<{ url: string; loading: boolean } | null>(null)
 
   const handleViewKYCImage = async (docUrl: string) => {
@@ -263,6 +265,38 @@ export default function AdminDashboard() {
     }
   }
 
+  // handleKYCRevokeConfirm — حذف توثيق الهوية مع ملاحظة + إشعار
+  const handleKYCRevokeConfirm = async () => {
+    if (!kycRevokeModal) return
+    const u = kycRevokeModal.user
+    const note = kycRevokeNote.trim() || 'تم إلغاء توثيق هويتك من قِبل الإدارة'
+    setKycActionLoading(u.id)
+    try {
+      await supabase.from('profiles').update({
+        kyc_status:    'none',
+        kyc_note:      null,
+        national_id:   null,
+        id_document_url: null,
+      }).eq('id', u.id)
+      if (u.auth_user_id) {
+        await createNotification({
+          authUserId: u.auth_user_id,
+          title: 'تم إلغاء توثيق هويتك ⚠️',
+          message: `تم إلغاء توثيق هويتك من قِبل الإدارة. الملاحظة: ${note}. يمكنك إعادة تقديم بيانات هويتك.`,
+          type: 'error',
+        })
+      }
+      setUsers(us => us.map(x => x.id === u.id ? { ...x, kyc_status: 'none', kyc_note: null, national_id: null, id_document_url: null } : x))
+      showToast('تم إلغاء التوثيق وإرسال الإشعار للمستخدم', true)
+      setKycRevokeModal(null)
+      setKycRevokeNote('')
+    } catch {
+      showToast('حدث خطأ أثناء إلغاء التوثيق', false)
+    } finally {
+      setKycActionLoading(null)
+    }
+  }
+
   if (loading || checking) return <div className="adm-center"><div className="bc-spinner" /></div>
 
   if (!user) return (
@@ -363,6 +397,45 @@ export default function AdminDashboard() {
                   onError={e => { (e.target as HTMLImageElement).src = ''; }}
                 />
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* KYC Revoke Modal */}
+      {kycRevokeModal && (
+        <div className="adm-overlay" onClick={() => setKycRevokeModal(null)}>
+          <div className="adm-modal" onClick={e => e.stopPropagation()}>
+            <div className="adm-modal-header">
+              <span className="adm-modal-title">إلغاء توثيق الهوية</span>
+              <button className="wsm-close" onClick={() => setKycRevokeModal(null)}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              </button>
+            </div>
+            <p className="adm-modal-right-title">{kycRevokeModal.user.full_name || kycRevokeModal.user.email}</p>
+            <div style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: 8, padding: '10px 14px', marginBottom: 12, fontSize: 13, color: '#ef4444' }}>
+              ⚠️ سيتم حذف بيانات الهوية وإلغاء التوثيق. سيحتاج المستخدم لإعادة رفع هويته.
+            </div>
+            <textarea
+              className="adm-modal-textarea"
+              placeholder="اكتب ملاحظة للمستخدم (مثال: تبيّن أن الهوية مزوّرة، معلومات غير مطابقة...)"
+              value={kycRevokeNote}
+              onChange={e => setKycRevokeNote(e.target.value)}
+              rows={3}
+            />
+            <div className="adm-modal-actions">
+              <button className="adm-btn-cancel" onClick={() => setKycRevokeModal(null)}>إلغاء</button>
+              <button
+                className="adm-btn-reject-confirm"
+                style={{ background: '#ef4444' }}
+                disabled={kycActionLoading === kycRevokeModal.user.id}
+                onClick={handleKYCRevokeConfirm}
+              >
+                {kycActionLoading === kycRevokeModal.user.id ? <span className="btn-spinner" /> : null}
+                تأكيد الإلغاء وإرسال الإشعار
+              </button>
             </div>
           </div>
         </div>
@@ -518,6 +591,15 @@ export default function AdminDashboard() {
                             ✕ رفض
                           </button>
                         </div>
+                      ) : u.kyc_status === 'verified' ? (
+                        <button
+                          className="adm-btn-reject"
+                          style={{ fontSize: 12 }}
+                          disabled={kycActionLoading === u.id}
+                          onClick={() => { setKycRevokeModal({ user: u }); setKycRevokeNote('') }}
+                        >
+                          {kycActionLoading === u.id ? <span className="btn-spinner" style={{ width: 12, height: 12, borderWidth: 2 }} /> : '🗑'}  إلغاء التوثيق
+                        </button>
                       ) : (
                         <span className="adm-reviewed-label">تمت المراجعة</span>
                       )}
