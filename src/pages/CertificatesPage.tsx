@@ -161,6 +161,11 @@ export default function CertificatesPage() {
   // loadCerts — جلب الشهادات من Supabase أو البلوكشين
   // إذا user موجود → getUserCerts من Supabase (أسرع وأكمل بيانات)
   // إذا لا user → fetchOwnerCertificates من البلوكشين (بعنوان المحفظة)
+
+  // userId مستخرج مسبقاً من user?.id لتجنب حلقة تحميل لانهائية:
+  // user هو كائن Object يتغير reference عند كل render حتى لو البيانات نفسها
+  // → وضعه في deps useCallback يُعيد إنشاء loadCerts كل render → useEffect يستدعيه كل render
+  // الحل: استخدم userId (string | null) بدلاً من user في الـ deps
   const userId = user?.id ?? null
 
   const loadCerts = useCallback(async () => {
@@ -191,13 +196,13 @@ export default function CertificatesPage() {
     } finally {
       setLoading(false)
     }
-  }, [userId, wallet.address])
+  }, [userId, wallet.address]) // userId و wallet.address فقط — لا user كاملاً
 
   useEffect(() => {
     if (userId || (isReady && wallet.address)) {
       loadCerts()
     }
-  }, [userId, isReady, wallet.address])
+  }, [userId, isReady, wallet.address]) // loadCerts محذوف من الـ deps لأنه مشتق منهم
 
   // handleTransfer — نقل ملكية شهادة على البلوكشين
   // يستدعي transferCertOnChain ثم يُعيد تحميل الشهادات

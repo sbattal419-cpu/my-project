@@ -2254,6 +2254,8 @@ body {
 .kyc-accepted {
   display: flex; gap: 8px; justify-content: center; flex-wrap: wrap;
 }
+/* kyc-accepted-item — أزرار نوع الوثيقة (هوية / جواز / رخصة) */
+/* cursor + transition أُضيفا لأن العناصر أصبحت <button> قابلة للضغط بدل <div> ثابتة */
 .kyc-accepted-item {
   display: flex; align-items: center; gap: 6px;
   background: rgba(37,99,235,.07);
@@ -2265,11 +2267,13 @@ body {
   cursor: pointer;
   transition: background .18s, border-color .18s, color .18s;
 }
+/* hover: إضاءة خفيفة بالأزرق */
 .kyc-accepted-item:hover {
   background: rgba(37,99,235,.14);
   border-color: rgba(37,99,235,.4);
   color: #93c5fd;
 }
+/* --active: الحالة المحددة — تُضاف عبر JS عند setKycDocType */
 .kyc-accepted-item--active {
   background: rgba(37,99,235,.22);
   border-color: #3b82f6;
@@ -2320,6 +2324,9 @@ body {
 
 .kyc-field-wrap  { display: flex; flex-direction: column; gap: 6px; width: 100%; }
 .kyc-field-label { font-size: 13px; color: #cbd5e1; font-weight: 500; }
+/* kyc-field-input — حقل رقم الهوية الوطنية */
+/* خلفية بيضاء + نص داكن بدلاً من الشفافة — يجعل الأرقام مقروءة بوضوح */
+/* focus: حدود زرقاء + هالة خفيفة بدلاً من مجرد تغيير اللون */
 .kyc-field-input {
   width: 100%; padding: 10px 14px;
   background: #fff;

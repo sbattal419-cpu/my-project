@@ -90,7 +90,7 @@ export default function RegisterRightPage() {
   const [kycLoading,    setKycLoading]    = useState(false)               // جاري إرسال KYC
   const [kycError,      setKycError]      = useState<string | null>(null) // رسالة خطأ KYC
   const [kycNationalId, setKycNationalId] = useState('')                  // رقم الهوية الوطنية
-  const [kycDocType,    setKycDocType]    = useState<'national_id' | 'passport' | 'driving_license'>('national_id')
+  const [kycDocType,    setKycDocType]    = useState<'national_id' | 'passport' | 'driving_license'>('national_id') // نوع الوثيقة — يؤثر على النص والحقول الظاهرة وتسمية زر الرفع
   const kycInputRef = useRef<HTMLInputElement>(null)                      // مرجع input رفع الهوية
 
   // ════════════════════════════════════════════════════════════════
@@ -149,6 +149,7 @@ export default function RegisterRightPage() {
   // handleKycSubmit — رفع ملف الهوية والرقم الوطني إلى Supabase Storage + profiles
   const handleKycSubmit = async () => {
     if (!kycFile || !user) return
+    // رقم الهوية مطلوب فقط عند اختيار بطاقة الهوية الوطنية — جواز السفر ورخصة القيادة لا يحتاجانه
     if (kycDocType === 'national_id' && !kycNationalId.trim()) {
       setKycError(lang === 'ar' ? 'يرجى إدخال رقم الهوية الوطنية' : 'Please enter your national ID number')
       return
@@ -247,6 +248,8 @@ export default function RegisterRightPage() {
           )}
 
           {/* أنواع الوثائق المقبولة — قابلة للتحديد */}
+          {/* كل زر يُحدّث kycDocType ويعيد تعيين الملف والخطأ ورقم الهوية */}
+          {/* kyc-accepted-item--active يُضاف للعنصر المحدد → CSS يُميّزه بلون أزرق */}
           <div className="kyc-accepted">
             {([
               { key: 'national_id',      icon: '🪪', label: lang === 'ar' ? 'بطاقة هوية وطنية' : 'National ID Card' },
@@ -266,6 +269,8 @@ export default function RegisterRightPage() {
           </div>
 
           {/* حقل رقم الهوية — يظهر فقط عند اختيار بطاقة الهوية الوطنية */}
+          {/* inputMode="numeric": يفتح لوحة أرقام على الموبايل */}
+          {/* replace(/\D/g, ''): يمنع إدخال أي حرف غير رقمي */}
           {kycDocType === 'national_id' && (
             <div className="kyc-field-wrap">
               <label className="kyc-field-label">{lang === 'ar' ? 'رقم الهوية الوطنية' : 'National ID Number'}</label>
@@ -283,6 +288,8 @@ export default function RegisterRightPage() {
           )}
 
           {/* منطقة رفع صورة الهوية */}
+          {/* IIFE (() => {...})() — لتعريف متغيرات محلية (docLabels, hint) داخل JSX بدون مكوّن منفصل */}
+          {/* docLabels: نص زر الرفع يتغير حسب نوع الوثيقة المختارة */}
           {(() => {
             const docLabels = {
               national_id:     lang === 'ar' ? 'صورة بطاقة الهوية الوطنية' : 'National ID Card photo',
@@ -333,6 +340,7 @@ export default function RegisterRightPage() {
           {/* زر الإرسال — معطّل حتى يُرفع ملف ويُدخل رقم الهوية */}
           <button
             className="kyc-submit-btn"
+            // معطّل إذا: لا ملف مرفوع، أو اختار هوية وطنية ولم يدخل رقمها، أو جاري الإرسال
             disabled={!kycFile || (kycDocType === 'national_id' && !kycNationalId.trim()) || kycLoading}
             onClick={handleKycSubmit}
           >

@@ -95,18 +95,21 @@ export default function AdminDashboard() {
   const [kycActionLoading, setKycActionLoading] = useState<number | null>(null)
   const [kycRejectModal,   setKycRejectModal]   = useState<{ user: UserRow } | null>(null)
   const [kycRejectNote,    setKycRejectNote]    = useState('')
-  const [kycRevokeModal,   setKycRevokeModal]   = useState<{ user: UserRow } | null>(null)
-  const [kycRevokeNote,    setKycRevokeNote]    = useState('')
-  const [kycImageModal, setKycImageModal] = useState<{ url: string; loading: boolean } | null>(null)
+  const [kycRevokeModal,   setKycRevokeModal]   = useState<{ user: UserRow } | null>(null) // مودال إلغاء توثيق مستخدم موثَّق (verified)
+  const [kycRevokeNote,    setKycRevokeNote]    = useState('')                              // ملاحظة الإلغاء → تُرسَل في الإشعار
+  const [kycImageModal, setKycImageModal] = useState<{ url: string; loading: boolean } | null>(null) // { url=signed URL, loading=جاري الجلب }
 
+  // handleViewKYCImage — يفتح مودال عرض صورة هوية المستخدم
+  // bucket "id-documents" خاص → الـ URL المباشر يرفض الوصول بدون توقيع
+  // الحل: استخرج مسار الملف → اطلب signed URL مؤقت صالح ساعة واحدة
   const handleViewKYCImage = async (docUrl: string) => {
-    setKycImageModal({ url: '', loading: true })
+    setKycImageModal({ url: '', loading: true }) // افتح المودال مع spinner أثناء الانتظار
     try {
-      const pathPart = docUrl.split('/id-documents/')[1]
-      if (!pathPart) { setKycImageModal({ url: docUrl, loading: false }); return }
-      const { data, error } = await supabase.storage.from('id-documents').createSignedUrl(pathPart, 3600)
+      const pathPart = docUrl.split('/id-documents/')[1]  // استخرج مسار الملف بعد اسم الـ bucket
+      if (!pathPart) { setKycImageModal({ url: docUrl, loading: false }); return } // fallback للـ URL الأصلي
+      const { data, error } = await supabase.storage.from('id-documents').createSignedUrl(pathPart, 3600) // 3600 ثانية = ساعة
       if (error || !data) { setKycImageModal({ url: docUrl, loading: false }); return }
-      setKycImageModal({ url: data.signedUrl, loading: false })
+      setKycImageModal({ url: data.signedUrl, loading: false }) // signed URL جاهز للعرض
     } catch {
       setKycImageModal({ url: docUrl, loading: false })
     }
@@ -265,13 +268,17 @@ export default function AdminDashboard() {
     }
   }
 
-  // handleKYCRevokeConfirm — حذف توثيق الهوية مع ملاحظة + إشعار
+  // handleKYCRevokeConfirm — إلغاء توثيق الهوية لمستخدم موثَّق مسبقاً مع إشعار
+  // الخطوة 1: يصفّر بيانات الهوية في profiles → kyc_status='none' + يحذف الرقم والملف
+  // الخطوة 2: يرسل إشعاراً للمستخدم يخبره بالإلغاء وسببه
+  // الخطوة 3: يحدّث local state مباشرة دون إعادة تحميل كامل البيانات
   const handleKYCRevokeConfirm = async () => {
     if (!kycRevokeModal) return
     const u = kycRevokeModal.user
-    const note = kycRevokeNote.trim() || 'تم إلغاء توثيق هويتك من قِبل الإدارة'
+    const note = kycRevokeNote.trim() || 'تم إلغاء توثيق هويتك من قِبل الإدارة' // نص افتراضي إذا لم يكتب الأدمن ملاحظة
     setKycActionLoading(u.id)
     try {
+      // الخطوة 1: حذف بيانات الهوية — kyc_status='none' يُعيد المستخدم لحالة غير موثَّق
       await supabase.from('profiles').update({
         kyc_status:    'none',
         kyc_note:      null,
@@ -279,6 +286,7 @@ export default function AdminDashboard() {
         id_document_url: null,
       }).eq('id', u.id)
       if (u.auth_user_id) {
+        // الخطوة 2: إشعار للمستخدم → src/lib/supabase-ipr.ts → createNotification
         await createNotification({
           authUserId: u.auth_user_id,
           title: 'تم إلغاء توثيق هويتك ⚠️',
@@ -286,6 +294,7 @@ export default function AdminDashboard() {
           type: 'error',
         })
       }
+      // الخطوة 3: تحديث local state لتجنب إعادة تحميل كامل بيانات الجدول
       setUsers(us => us.map(x => x.id === u.id ? { ...x, kyc_status: 'none', kyc_note: null, national_id: null, id_document_url: null } : x))
       showToast('تم إلغاء التوثيق وإرسال الإشعار للمستخدم', true)
       setKycRevokeModal(null)
@@ -370,7 +379,10 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* KYC Image Modal */}
+      {/* KYC Image Modal — يعرض صورة هوية المستخدم */}
+      {/* loading=true: spinner أثناء جلب signed URL من Supabase */}
+      {/* url تنتهي .pdf: رابط "فتح ملف PDF" في تاب جديد */}
+      {/* غير ذلك: صورة مع onError كـ fallback إذا انتهت صلاحية الـ URL */}
       {kycImageModal && (
         <div className="adm-overlay" onClick={() => setKycImageModal(null)}>
           <div className="adm-modal" style={{ maxWidth: 620 }} onClick={e => e.stopPropagation()}>
@@ -402,7 +414,9 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* KYC Revoke Modal */}
+      {/* KYC Revoke Modal — يؤكد إلغاء توثيق مستخدم موثَّق ويطلب ملاحظة اختيارية */}
+      {/* البانر الأحمر: تحذير من حذف البيانات بشكل دائم */}
+      {/* textarea: ملاحظة اختيارية تُضاف لنص الإشعار المرسَل للمستخدم */}
       {kycRevokeModal && (
         <div className="adm-overlay" onClick={() => setKycRevokeModal(null)}>
           <div className="adm-modal" onClick={e => e.stopPropagation()}>
@@ -554,6 +568,7 @@ export default function AdminDashboard() {
                     <td className="adm-td-email">{u.email || '—'}</td>
                     <td className="adm-td-mono" dir="ltr">{u.national_id || '—'}</td>
                     <td>
+                      {/* button بدل <a> — bucket خاص لا يدعم الرابط المباشر → handleViewKYCImage تجلب signed URL */}
                       {u.id_document_url ? (
                         <button className="adm-doc-link" style={{ background: 'none', border: 'none', cursor: 'pointer' }} onClick={() => handleViewKYCImage(u.id_document_url!)}>
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -592,6 +607,7 @@ export default function AdminDashboard() {
                           </button>
                         </div>
                       ) : u.kyc_status === 'verified' ? (
+                        // زر "إلغاء التوثيق" — يظهر فقط للمستخدمين الموثَّقين → يفتح kycRevokeModal
                         <button
                           className="adm-btn-reject"
                           style={{ fontSize: 12 }}
