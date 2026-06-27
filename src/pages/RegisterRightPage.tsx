@@ -223,8 +223,16 @@ export default function RegisterRightPage() {
             <h2 className="kyc-title">{lang === 'ar' ? 'التحقق من الهوية مطلوب' : 'Identity Verification Required'}</h2>
             <p className="kyc-subtitle">
               {lang === 'ar'
-                ? 'لحماية حقوق الملكية الفكرية ومنع التزوير، يجب إدخال رقم هويتك الوطنية ورفع صورتها.'
-                : 'To protect intellectual property rights and prevent fraud, your national ID is required before registration.'}
+                ? kycDocType === 'national_id'
+                  ? 'لحماية حقوق الملكية الفكرية ومنع التزوير، يجب إدخال رقم هويتك الوطنية ورفع صورتها.'
+                  : kycDocType === 'driving_license'
+                  ? 'لحماية حقوق الملكية الفكرية ومنع التزوير، يجب رفع صورة رخصة قيادتك.'
+                  : 'لحماية حقوق الملكية الفكرية ومنع التزوير، يجب رفع صورة جواز سفرك.'
+                : kycDocType === 'national_id'
+                  ? 'To protect intellectual property rights and prevent fraud, your national ID is required before registration.'
+                  : kycDocType === 'driving_license'
+                  ? 'To protect intellectual property rights and prevent fraud, your driving license is required before registration.'
+                  : 'To protect intellectual property rights and prevent fraud, your passport is required before registration.'}
             </p>
           </div>
 
