@@ -273,7 +273,7 @@ export default function CertificatesPage() {
           <p className="bc-page-desc">{t('my.page.desc')}</p>
         </div>
 
-        {!isReady ? (
+        {!isReady && !userId ? (
           <div className="bc-wallet-prompt-card">
             <div className="bc-wpc-icon">
               <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
