@@ -111,6 +111,7 @@ export async function saveCertToSupabase(params: SaveCertParams): Promise<void> 
     tx_hash:         params.result.txHash,         // من البلوكشين
     document_hash:   params.result.documentHash,   // SHA-256 للملف
     block_number:    params.result.blockNumber,    // رقم الكتلة
+    status:          'pending',                    // الحالة الافتراضية عند التسجيل
   })
   if (error) throw error
 }

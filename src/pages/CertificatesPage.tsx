@@ -174,18 +174,25 @@ export default function CertificatesPage() {
     try {
       if (userId) {
         const rows = await getUserCerts(userId)
-        setSource('supabase')
-        setCerts(rows.map((r: RightsRow) => ({
-          certId:       r.cert_id,
-          owner:        r.wallet_address,
-          documentHash: r.document_hash,
-          ipType:       r.ip_type,
-          title:        r.title,
-          description:  r.description,
-          holderName:   r.holder_name,
-          registeredAt: new Date(r.created_at),
-          isValid:      true,
-        })))
+        if (rows.length > 0) {
+          setSource('supabase')
+          setCerts(rows.map((r: RightsRow) => ({
+            certId:       r.cert_id,
+            owner:        r.wallet_address,
+            documentHash: r.document_hash,
+            ipType:       r.ip_type,
+            title:        r.title,
+            description:  r.description,
+            holderName:   r.holder_name,
+            registeredAt: new Date(r.created_at),
+            isValid:      true,
+          })))
+        } else if (wallet.address) {
+          // fallback: إذا Supabase فارغة، اجلب من البلوكشين مباشرة
+          setSource('blockchain')
+          const data = await fetchOwnerCertificates(wallet.address)
+          setCerts(data)
+        }
       } else if (wallet.address) {
         setSource('blockchain')
         const data = await fetchOwnerCertificates(wallet.address)
