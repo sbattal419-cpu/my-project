@@ -260,7 +260,8 @@ export default function AdminDashboard() {
     setKycActionLoading(u.id)
     try {
       const db = supabaseAdmin ?? supabase
-      await db.from('profiles').update({ kyc_status: 'verified', kyc_note: null }).eq('id', u.id)
+      const { error: upErr } = await db.from('profiles').update({ kyc_status: 'verified', kyc_note: null }).eq('id', u.id)
+      if (upErr) { showToast(`خطأ: ${upErr.message}`, false); return }
       if (u.auth_user_id) {
         await createNotification({
           authUserId: u.auth_user_id,
@@ -271,8 +272,8 @@ export default function AdminDashboard() {
       }
       setUsers(us => us.map(x => x.id === u.id ? { ...x, kyc_status: 'verified' } : x))
       showToast('تم التحقق من هوية المستخدم وإرسال الإشعار', true)
-    } catch {
-      showToast('حدث خطأ أثناء التحديث', false)
+    } catch (e: unknown) {
+      showToast(`خطأ: ${e instanceof Error ? e.message : 'غير معروف'}`, false)
     } finally {
       setKycActionLoading(null)
     }
@@ -287,7 +288,8 @@ export default function AdminDashboard() {
     setKycActionLoading(u.id)
     try {
       const db = supabaseAdmin ?? supabase
-      await db.from('profiles').update({ kyc_status: 'rejected', kyc_note: note }).eq('id', u.id)
+      const { error: upErr } = await db.from('profiles').update({ kyc_status: 'rejected', kyc_note: note }).eq('id', u.id)
+      if (upErr) { showToast(`خطأ: ${upErr.message}`, false); return }
       if (u.auth_user_id) {
         await createNotification({
           authUserId: u.auth_user_id,
@@ -442,12 +444,23 @@ export default function AdminDashboard() {
                   فتح ملف PDF
                 </a>
               ) : (
-                <img
-                  src={kycImageModal.url}
-                  alt="صورة الهوية"
-                  style={{ maxWidth: '100%', maxHeight: '70vh', borderRadius: 8, border: '1px solid #e2e8f0' }}
-                  onError={e => { (e.target as HTMLImageElement).src = ''; }}
-                />
+                <>
+                  <img
+                    src={kycImageModal.url}
+                    alt="صورة الهوية"
+                    style={{ maxWidth: '100%', maxHeight: '60vh', borderRadius: 8, border: '1px solid #e2e8f0', display: 'block', margin: '0 auto' }}
+                    onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
+                  />
+                  <a
+                    href={kycImageModal.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="adm-doc-link"
+                    style={{ display: 'inline-block', marginTop: 10, fontSize: 14 }}
+                  >
+                    فتح الصورة في تاب جديد ↗
+                  </a>
+                </>
               )}
             </div>
           </div>
