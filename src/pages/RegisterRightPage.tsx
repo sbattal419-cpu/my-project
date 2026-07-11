@@ -487,8 +487,10 @@ export default function RegisterRightPage() {
             // الخطوة 3: رفع الملف لـ Storage → src/lib/supabase-ipr.ts → uploadIPFile
             try { await uploadIPFile(file, res.certId) } catch (e) { console.error('File upload error:', e) }
           }
-        } catch (sbErr) {
+        } catch (sbErr: any) {
           console.error('Supabase save error:', sbErr)
+          // إظهار خطأ Supabase في الواجهة مع إبقاء نجاح البلوكشين
+          setError('⚠️ تم التسجيل على البلوكشين لكن فشل الحفظ في قاعدة البيانات: ' + (sbErr?.message ?? JSON.stringify(sbErr)))
         }
       }
 
