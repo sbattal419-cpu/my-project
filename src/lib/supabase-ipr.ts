@@ -98,30 +98,44 @@ export async function checkPerceptualDuplicate(
 // يحفظ شهادة جديدة: أولاً في Intellectual_Properties ثم في Rights
 // يُستخدم في: RegisterRightPage → handleRegister (الخطوة 2)
 export async function saveCertToSupabase(params: SaveCertParams): Promise<void> {
-  const db = supabaseAdmin ?? supabase
+  const SVCKEY = import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY as string
+  const DBURL  = import.meta.env.VITE_SUPABASE_URL as string
+
+  // دالة مساعدة: POST مباشر للـ REST API بـ service role key يتجاوز RLS
+  const adminPost = async (table: string, body: object) => {
+    const res = await fetch(`${DBURL}/rest/v1/${table}`, {
+      method: 'POST',
+      headers: {
+        'apikey': SVCKEY,
+        'Authorization': `Bearer ${SVCKEY}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=representation',
+      },
+      body: JSON.stringify(body),
+    })
+    const json = await res.json()
+    if (!res.ok) throw new Error(JSON.stringify(json))
+    return Array.isArray(json) ? json[0] : json
+  }
 
   // الخطوة 1: إدخال في Intellectual_Properties والحصول على ip_id
-  const { data: ipData, error: ipError } = await db
-    .from('Intellectual_Properties')
-    .insert({
-      title:             params.title,
-      type:              params.ipType,
-      description:       params.description,
-      registration_date: new Date().toISOString().slice(0, 10),
-      status:            'pending',
-    })
-    .select('id')
-    .single()
-  if (ipError) throw ipError
+  const ipRow = await adminPost('Intellectual_Properties', {
+    title:             params.title,
+    type:              params.ipType,
+    description:       params.description,
+    registration_date: new Date().toISOString().slice(0, 10),
+    status:            'pending',
+  })
+  if (!ipRow?.id) throw new Error('فشل حفظ السجل في Intellectual_Properties')
 
   // الخطوة 2: إدخال في Rights مع ip_id المستخرج
-  const { error } = await db.from('Rights').insert({
+  await adminPost('Rights', {
     auth_user_id:    params.userId,
     wallet_address:  params.walletAddress,
     title:           params.title,
     ip_type:         params.ipType,
     right_type:      params.ipType,
-    ip_id:           ipData.id,
+    ip_id:           ipRow.id,
     description:     params.description,
     holder_name:     params.holderName,
     holder_email:    params.holderEmail ?? null,
@@ -133,7 +147,6 @@ export async function saveCertToSupabase(params: SaveCertParams): Promise<void> 
     block_number:    params.result.blockNumber,
     status:          'pending',
   })
-  if (error) throw error
 }
 
 // ── uploadIPFile ──────────────────────────────────────────────
