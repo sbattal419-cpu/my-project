@@ -244,14 +244,31 @@ export default function AdminDashboard() {
     }
   }
 
+  // kycDirectUpdate — يحدّث profiles مباشرة عبر REST API بالـ service role key متجاوزاً RLS
+  const kycDirectUpdate = async (profileId: string | number, body: Record<string, unknown>): Promise<string | null> => {
+    const svcKey = import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY as string
+    const url    = import.meta.env.VITE_SUPABASE_URL as string
+    if (!svcKey) return 'مفتاح الخدمة غير موجود في .env.local'
+    const res = await fetch(`${url}/rest/v1/profiles?id=eq.${profileId}`, {
+      method: 'PATCH',
+      headers: {
+        'apikey': svcKey,
+        'Authorization': `Bearer ${svcKey}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=minimal',
+      },
+      body: JSON.stringify(body),
+    })
+    if (!res.ok) return await res.text()
+    return null // null = نجاح
+  }
+
   // handleKYCApprove — قبول طلب التحقق من الهوية (KYC)
-  // يحدّث profiles.kyc_status → 'verified' ويُرسل إشعار للمستخدم
   const handleKYCApprove = async (u: UserRow) => {
     setKycActionLoading(u.id)
     try {
-      const db = supabaseAdmin ?? supabase
-      const { error: upErr } = await db.from('profiles').update({ kyc_status: 'verified', kyc_note: null }).eq('id', u.id)
-      if (upErr) { showToast(`خطأ: ${upErr.message}`, false); return }
+      const err = await kycDirectUpdate(u.id, { kyc_status: 'verified', kyc_note: null })
+      if (err) { showToast(`خطأ: ${err}`, false); return }
       if (u.auth_user_id) {
         await createNotification({
           authUserId: u.auth_user_id,
@@ -270,16 +287,14 @@ export default function AdminDashboard() {
   }
 
   // handleKYCRejectConfirm — رفض طلب KYC مع ملاحظة + إشعار
-  // يُستدعى من مودال رفض KYC عند الضغط على "تأكيد الرفض"
   const handleKYCRejectConfirm = async () => {
     if (!kycRejectModal) return
     const u = kycRejectModal.user
     const note = kycRejectNote.trim() || 'البيانات المقدمة غير مطابقة'
     setKycActionLoading(u.id)
     try {
-      const db = supabaseAdmin ?? supabase
-      const { error: upErr } = await db.from('profiles').update({ kyc_status: 'rejected', kyc_note: note }).eq('id', u.id)
-      if (upErr) { showToast(`خطأ: ${upErr.message}`, false); return }
+      const err = await kycDirectUpdate(u.id, { kyc_status: 'rejected', kyc_note: note })
+      if (err) { showToast(`خطأ: ${err}`, false); return }
       if (u.auth_user_id) {
         await createNotification({
           authUserId: u.auth_user_id,
@@ -300,25 +315,15 @@ export default function AdminDashboard() {
   }
 
   // handleKYCRevokeConfirm — إلغاء توثيق الهوية لمستخدم موثَّق مسبقاً مع إشعار
-  // الخطوة 1: يصفّر بيانات الهوية في profiles → kyc_status='none' + يحذف الرقم والملف
-  // الخطوة 2: يرسل إشعاراً للمستخدم يخبره بالإلغاء وسببه
-  // الخطوة 3: يحدّث local state مباشرة دون إعادة تحميل كامل البيانات
   const handleKYCRevokeConfirm = async () => {
     if (!kycRevokeModal) return
     const u = kycRevokeModal.user
-    const note = kycRevokeNote.trim() || 'تم إلغاء توثيق هويتك من قِبل الإدارة' // نص افتراضي إذا لم يكتب الأدمن ملاحظة
+    const note = kycRevokeNote.trim() || 'تم إلغاء توثيق هويتك من قِبل الإدارة'
     setKycActionLoading(u.id)
     try {
-      // الخطوة 1: حذف بيانات الهوية — kyc_status='none' يُعيد المستخدم لحالة غير موثَّق
-      const db = supabaseAdmin ?? supabase
-      await db.from('profiles').update({
-        kyc_status:    'none',
-        kyc_note:      null,
-        national_id:   null,
-        id_document_url: null,
-      }).eq('id', u.id)
+      const err = await kycDirectUpdate(u.id, { kyc_status: 'none', kyc_note: null, national_id: null, id_document_url: null })
+      if (err) { showToast(`خطأ: ${err}`, false); return }
       if (u.auth_user_id) {
-        // الخطوة 2: إشعار للمستخدم → src/lib/supabase-ipr.ts → createNotification
         await createNotification({
           authUserId: u.auth_user_id,
           title: 'تم إلغاء توثيق هويتك ⚠️',
@@ -326,7 +331,6 @@ export default function AdminDashboard() {
           type: 'error',
         })
       }
-      // الخطوة 3: تحديث local state لتجنب إعادة تحميل كامل بيانات الجدول
       setUsers(us => us.map(x => x.id === u.id ? { ...x, kyc_status: 'none', kyc_note: null, national_id: null, id_document_url: null } : x))
       showToast('تم إلغاء التوثيق وإرسال الإشعار للمستخدم', true)
       setKycRevokeModal(null)
