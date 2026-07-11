@@ -5,7 +5,7 @@
 // للتعديل: ابحث عن BLOCKCHAIN أو IP_TYPES
 // ════════════════════════════════════════════════════════════════
 export const BLOCKCHAIN = {
-  CONTRACT_ADDRESS: (import.meta.env.VITE_CONTRACT_ADDRESS as string) ?? '0x0000000000000000000000000000000000000000',
+  CONTRACT_ADDRESS: (import.meta.env.VITE_CONTRACT_ADDRESS as string) || '',
   CHAIN_ID: 11155111,
   NETWORK_NAME: 'Sepolia Testnet',
   EXPLORER: 'https://sepolia.etherscan.io',

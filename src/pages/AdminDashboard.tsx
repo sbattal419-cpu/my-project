@@ -10,6 +10,8 @@ import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabase'
 import { updateRightStatus, createNotification } from '../lib/supabase-ipr'
 import { signOut } from '../lib/auth'
+import { compileAndDeploy, saveManualAddress } from '../lib/deploy'
+import { getContractAddress, isContractDeployed } from '../lib/blockchain'
 
 // ════════════════════════════════════════════════════════════════
 // SECTION: TYPES — أنواع البيانات
@@ -81,8 +83,42 @@ export default function AdminDashboard() {
   const [stats,       setStats]       = useState<Stats>({ rights: 0, users: 0, files: 0 })
   const [rights,      setRights]      = useState<RightRow[]>([])
   const [users,       setUsers]       = useState<UserRow[]>([])
-  const [activeTab,   setActiveTab]   = useState<'rights' | 'users' | 'kyc'>('rights')
+  const [activeTab,   setActiveTab]   = useState<'rights' | 'users' | 'kyc' | 'contract'>('rights')
   const [dataLoading, setDataLoading] = useState(true)
+
+  // ── حالة نشر العقد الذكي ──────────────────────────────────────
+  const [deployStatus,   setDeployStatus]   = useState('')
+  const [deploying,      setDeploying]      = useState(false)
+  const [deployedAddr,   setDeployedAddr]   = useState(getContractAddress())
+  const [manualAddr,     setManualAddr]     = useState('')
+  const [manualSaved,    setManualSaved]    = useState(false)
+
+  const handleDeploy = async () => {
+    setDeploying(true)
+    setDeployStatus('')
+    try {
+      const addr = await compileAndDeploy(setDeployStatus)
+      setDeployedAddr(addr)
+      setDeployStatus('✅ تم النشر بنجاح!')
+      showToast('تم نشر العقد الذكي بنجاح', true)
+    } catch (e: any) {
+      setDeployStatus('❌ ' + (e?.message ?? 'حدث خطأ'))
+    } finally {
+      setDeploying(false)
+    }
+  }
+
+  const handleSaveManual = () => {
+    const addr = manualAddr.trim()
+    if (!addr.startsWith('0x') || addr.length !== 42) {
+      showToast('عنوان غير صحيح — يجب أن يبدأ بـ 0x ويتكون من 42 حرفاً', false)
+      return
+    }
+    saveManualAddress(addr)
+    setDeployedAddr(addr)
+    setManualSaved(true)
+    showToast('تم حفظ عنوان العقد', true)
+  }
 
   // ── حالة مودال رفض الحق ──────────────────────────────────────
   const [rejectModal,  setRejectModal]  = useState<{ row: RightRow } | null>(null)
@@ -540,6 +576,10 @@ export default function AdminDashboard() {
               <span className="adm-tab-badge">{users.filter(u => u.kyc_status === 'pending').length}</span>
             )}
           </button>
+          <button className={`adm-tab${activeTab === 'contract' ? ' adm-tab-active' : ''}`} onClick={() => setActiveTab('contract')}>
+            العقد الذكي
+            {!isContractDeployed() && <span className="adm-tab-badge" style={{ background: '#ef4444' }}>!</span>}
+          </button>
         </div>
 
         {dataLoading ? (
@@ -624,6 +664,102 @@ export default function AdminDashboard() {
                 ))}
               </tbody>
             </table>
+          </div>
+        ) : activeTab === 'contract' ? (
+          <div style={{ maxWidth: 620, margin: '0 auto', padding: '8px 0' }}>
+            {/* حالة العقد */}
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 12, padding: '14px 18px',
+              borderRadius: 10, marginBottom: 20,
+              background: deployedAddr && deployedAddr !== '0x0000000000000000000000000000000000000000'
+                ? 'rgba(5,150,105,0.08)' : 'rgba(239,68,68,0.08)',
+              border: `1px solid ${deployedAddr && deployedAddr !== '0x0000000000000000000000000000000000000000' ? 'rgba(5,150,105,0.25)' : 'rgba(239,68,68,0.25)'}`,
+            }}>
+              <span style={{ fontSize: 22 }}>
+                {deployedAddr && deployedAddr !== '0x0000000000000000000000000000000000000000' ? '✅' : '⚠️'}
+              </span>
+              <div>
+                <p style={{ margin: 0, fontWeight: 600, fontSize: 14,
+                  color: deployedAddr && deployedAddr !== '0x0000000000000000000000000000000000000000' ? '#059669' : '#dc2626' }}>
+                  {deployedAddr && deployedAddr !== '0x0000000000000000000000000000000000000000'
+                    ? 'العقد الذكي منشور ويعمل'
+                    : 'العقد الذكي غير منشور — التسجيل معطّل'}
+                </p>
+                {deployedAddr && deployedAddr !== '0x0000000000000000000000000000000000000000' && (
+                  <p style={{ margin: '4px 0 0', fontSize: 12, color: '#6b7280', fontFamily: 'monospace', wordBreak: 'break-all' }} dir="ltr">
+                    {deployedAddr}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* زر النشر التلقائي */}
+            {(!deployedAddr || deployedAddr === '0x0000000000000000000000000000000000000000') && (
+              <div style={{ background: 'var(--card-bg, #fff)', border: '1px solid var(--border, #e2e8f0)', borderRadius: 12, padding: '20px 24px', marginBottom: 20 }}>
+                <h3 style={{ margin: '0 0 8px', fontSize: 16 }}>نشر العقد تلقائياً</h3>
+                <p style={{ margin: '0 0 16px', fontSize: 13, color: '#6b7280' }}>
+                  سيقوم المتصفح بتحميل المترجم وتجميع العقد ونشره على Sepolia عبر MetaMask.
+                  تأكد من أن محفظتك على شبكة Sepolia وبها ETH تجريبي.
+                </p>
+                {deployStatus && (
+                  <p style={{ margin: '0 0 12px', fontSize: 13, padding: '8px 12px', borderRadius: 8,
+                    background: deployStatus.startsWith('✅') ? 'rgba(5,150,105,0.08)' : deployStatus.startsWith('❌') ? 'rgba(239,68,68,0.08)' : 'rgba(59,130,246,0.08)',
+                    color: deployStatus.startsWith('✅') ? '#059669' : deployStatus.startsWith('❌') ? '#dc2626' : '#2563eb',
+                    border: '1px solid currentColor', borderColor: 'transparent',
+                  }}>
+                    {deployStatus}
+                  </p>
+                )}
+                <button
+                  className="btn-bc-primary"
+                  style={{ width: '100%', justifyContent: 'center', gap: 8 }}
+                  disabled={deploying}
+                  onClick={handleDeploy}
+                >
+                  {deploying ? <span className="bc-spinner" style={{ width: 16, height: 16, borderWidth: 2 }} /> : '🚀'}
+                  {deploying ? 'جاري النشر...' : 'نشر العقد الذكي عبر MetaMask'}
+                </button>
+              </div>
+            )}
+
+            {/* إضافة عنوان يدوياً */}
+            <div style={{ background: 'var(--card-bg, #fff)', border: '1px solid var(--border, #e2e8f0)', borderRadius: 12, padding: '20px 24px', marginBottom: 20 }}>
+              <h3 style={{ margin: '0 0 8px', fontSize: 16 }}>إدخال عنوان العقد يدوياً</h3>
+              <p style={{ margin: '0 0 12px', fontSize: 13, color: '#6b7280' }}>
+                إذا نشرت العقد من مكان آخر، الصق عنوانه هنا:
+              </p>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <input
+                  className="wsm-input"
+                  dir="ltr"
+                  placeholder="0x..."
+                  value={manualAddr}
+                  onChange={e => { setManualAddr(e.target.value); setManualSaved(false) }}
+                  style={{ flex: 1, fontFamily: 'monospace', fontSize: 13 }}
+                />
+                <button className="adm-btn-approve" onClick={handleSaveManual}>
+                  {manualSaved ? '✓ محفوظ' : 'حفظ'}
+                </button>
+              </div>
+            </div>
+
+            {/* تعليمات .env.local */}
+            {deployedAddr && deployedAddr !== '0x0000000000000000000000000000000000000000' && (
+              <div style={{ background: 'rgba(59,130,246,0.06)', border: '1px solid rgba(59,130,246,0.2)', borderRadius: 12, padding: '16px 20px' }}>
+                <p style={{ margin: '0 0 8px', fontWeight: 600, fontSize: 13, color: '#2563eb' }}>
+                  💡 لجعل العنوان دائماً (بعد إعادة تحميل الصفحة):
+                </p>
+                <p style={{ margin: '0 0 8px', fontSize: 12, color: '#6b7280' }}>
+                  أضف هذا السطر في ملف <code>.env.local</code>:
+                </p>
+                <div style={{ background: '#1e293b', borderRadius: 8, padding: '10px 14px', fontFamily: 'monospace', fontSize: 12, color: '#94a3b8', direction: 'ltr', wordBreak: 'break-all' }}>
+                  VITE_CONTRACT_ADDRESS={deployedAddr}
+                </div>
+                <p style={{ margin: '8px 0 0', fontSize: 12, color: '#6b7280' }}>
+                  ثم أعد تشغيل التطبيق (npm run dev)
+                </p>
+              </div>
+            )}
           </div>
         ) : activeTab === 'rights' ? (
           <div className="adm-table-wrap">

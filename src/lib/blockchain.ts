@@ -114,20 +114,30 @@ function getReadOnlyProvider() {
   return new ethers.JsonRpcProvider(BLOCKCHAIN.PUBLIC_RPC)                         // يتصل بـ RPC العامة مباشرة (بدون توقيع)
 }
 
+// ── getContractAddress — يقرأ عنوان العقد من env أو localStorage ────────────
+export function getContractAddress(): string {
+  return (
+    BLOCKCHAIN.CONTRACT_ADDRESS ||
+    localStorage.getItem('ipr_contract_address') ||
+    '0x0000000000000000000000000000000000000000'
+  )
+}
+
 // ── getContract — يُنشئ كائن العقد الذكي للتفاعل معه ──────────────────────────
 // signed=true  → يحتاج توقيع من المحفظة (للكتابة: registerIP, transferCertificate)
 // signed=false → قراءة فقط (getCertificate, verifyByHash, getOwnerCertificates)
 export async function getContract(signed = false) {
+  const addr = getContractAddress()
   if (signed) {
     const provider = getProvider()
     const signer = await provider.getSigner()                                       // Signer = هوية المحفظة للتوقيع على المعاملات
-    return new ethers.Contract(BLOCKCHAIN.CONTRACT_ADDRESS, CONTRACT_ABI, signer)
+    return new ethers.Contract(addr, CONTRACT_ABI, signer)
   }
   // للقراءة: استخدم BrowserProvider إذا وُجدت محفظة، وإلا انتقل لـ RPC عامة
   const provider = (_activeProvider ?? (typeof window !== 'undefined' && window.ethereum))
     ? getProvider()
     : getReadOnlyProvider()                                                         // fallback للـ RPC العامة (بدون محفظة)
-  return new ethers.Contract(BLOCKCHAIN.CONTRACT_ADDRESS, CONTRACT_ABI, provider)
+  return new ethers.Contract(addr, CONTRACT_ABI, provider)
 }
 
 // ── buildDocumentHash — بناء هاش فريد للحق الفكري ─────────────────────────────
@@ -351,5 +361,5 @@ export async function transferCertOnChain(certId: string, toAddress: string): Pr
 
 // isContractDeployed — تحقق هل نشرنا العقد الذكي فعلاً (ليس العنوان الافتراضي)
 export function isContractDeployed(): boolean {
-  return BLOCKCHAIN.CONTRACT_ADDRESS !== '0x0000000000000000000000000000000000000000'
+  return getContractAddress() !== '0x0000000000000000000000000000000000000000'
 }
