@@ -94,24 +94,42 @@ export async function checkPerceptualDuplicate(
 }
 
 // ── saveCertToSupabase ────────────────────────────────────────
-// يحفظ شهادة جديدة في جدول Rights بعد التسجيل على البلوكشين
+// يحفظ شهادة جديدة: أولاً في Intellectual_Properties ثم في Rights
 // يُستخدم في: RegisterRightPage → handleRegister (الخطوة 2)
 export async function saveCertToSupabase(params: SaveCertParams): Promise<void> {
+  // الخطوة 1: إدخال في Intellectual_Properties والحصول على ip_id
+  const { data: ipData, error: ipError } = await supabase
+    .from('Intellectual_Properties')
+    .insert({
+      title:             params.title,
+      type:              params.ipType,
+      description:       params.description,
+      registration_date: new Date().toISOString().slice(0, 10),
+      status:            'pending',
+      owner_id:          params.userId,
+    })
+    .select('id')
+    .single()
+  if (ipError) throw ipError
+
+  // الخطوة 2: إدخال في Rights مع ip_id المستخرج
   const { error } = await supabase.from('Rights').insert({
     auth_user_id:    params.userId,
     wallet_address:  params.walletAddress,
     title:           params.title,
     ip_type:         params.ipType,
+    right_type:      params.ipType,
+    ip_id:           ipData.id,
     description:     params.description,
     holder_name:     params.holderName,
     holder_email:    params.holderEmail ?? null,
-    extra_fields:    params.extraFields ?? null,   // حقول إضافية حسب نوع الحق
+    extra_fields:    params.extraFields ?? null,
     perceptual_hash: params.perceptualHash ?? null,
-    cert_id:         params.result.certId,         // من البلوكشين
-    tx_hash:         params.result.txHash,         // من البلوكشين
-    document_hash:   params.result.documentHash,   // SHA-256 للملف
-    block_number:    params.result.blockNumber,    // رقم الكتلة
-    status:          'pending',                    // الحالة الافتراضية عند التسجيل
+    cert_id:         params.result.certId,
+    tx_hash:         params.result.txHash,
+    document_hash:   params.result.documentHash,
+    block_number:    params.result.blockNumber,
+    status:          'pending',
   })
   if (error) throw error
 }
