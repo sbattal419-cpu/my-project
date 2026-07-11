@@ -12,6 +12,7 @@ import { updateRightStatus, createNotification } from '../lib/supabase-ipr'
 import { signOut } from '../lib/auth'
 import { compileAndDeploy, saveManualAddress } from '../lib/deploy'
 import { getContractAddress, isContractDeployed } from '../lib/blockchain'
+import { supabaseAdmin } from '../lib/supabase-admin'
 
 // ════════════════════════════════════════════════════════════════
 // SECTION: TYPES — أنواع البيانات
@@ -136,19 +137,9 @@ export default function AdminDashboard() {
   const [kycImageModal, setKycImageModal] = useState<{ url: string; loading: boolean } | null>(null) // { url=signed URL, loading=جاري الجلب }
 
   // handleViewKYCImage — يفتح مودال عرض صورة هوية المستخدم
-  // bucket "id-documents" خاص → الـ URL المباشر يرفض الوصول بدون توقيع
-  // الحل: استخرج مسار الملف → اطلب signed URL مؤقت صالح ساعة واحدة
-  const handleViewKYCImage = async (docUrl: string) => {
-    setKycImageModal({ url: '', loading: true }) // افتح المودال مع spinner أثناء الانتظار
-    try {
-      const pathPart = docUrl.split('/id-documents/')[1]  // استخرج مسار الملف بعد اسم الـ bucket
-      if (!pathPart) { setKycImageModal({ url: docUrl, loading: false }); return } // fallback للـ URL الأصلي
-      const { data, error } = await supabase.storage.from('id-documents').createSignedUrl(pathPart, 3600) // 3600 ثانية = ساعة
-      if (error || !data) { setKycImageModal({ url: docUrl, loading: false }); return }
-      setKycImageModal({ url: data.signedUrl, loading: false }) // signed URL جاهز للعرض
-    } catch {
-      setKycImageModal({ url: docUrl, loading: false })
-    }
+  // bucket "id-documents" عام → الرابط المخزّن يعمل مباشرة بدون signed URL
+  const handleViewKYCImage = (docUrl: string) => {
+    setKycImageModal({ url: docUrl, loading: false })
   }
 
   // ── فحص صلاحية الأدمن من جدول profiles ──────────────────────
@@ -258,7 +249,8 @@ export default function AdminDashboard() {
   const handleKYCApprove = async (u: UserRow) => {
     setKycActionLoading(u.id)
     try {
-      await supabase.from('profiles').update({ kyc_status: 'verified', kyc_note: null }).eq('id', u.id)
+      const db = supabaseAdmin ?? supabase
+      await db.from('profiles').update({ kyc_status: 'verified', kyc_note: null }).eq('id', u.id)
       if (u.auth_user_id) {
         await createNotification({
           authUserId: u.auth_user_id,
@@ -284,7 +276,8 @@ export default function AdminDashboard() {
     const note = kycRejectNote.trim() || 'البيانات المقدمة غير مطابقة'
     setKycActionLoading(u.id)
     try {
-      await supabase.from('profiles').update({ kyc_status: 'rejected', kyc_note: note }).eq('id', u.id)
+      const db = supabaseAdmin ?? supabase
+      await db.from('profiles').update({ kyc_status: 'rejected', kyc_note: note }).eq('id', u.id)
       if (u.auth_user_id) {
         await createNotification({
           authUserId: u.auth_user_id,
@@ -315,7 +308,8 @@ export default function AdminDashboard() {
     setKycActionLoading(u.id)
     try {
       // الخطوة 1: حذف بيانات الهوية — kyc_status='none' يُعيد المستخدم لحالة غير موثَّق
-      await supabase.from('profiles').update({
+      const db = supabaseAdmin ?? supabase
+      await db.from('profiles').update({
         kyc_status:    'none',
         kyc_note:      null,
         national_id:   null,
