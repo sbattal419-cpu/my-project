@@ -137,9 +137,19 @@ export default function AdminDashboard() {
   const [kycImageModal, setKycImageModal] = useState<{ url: string; loading: boolean } | null>(null) // { url=signed URL, loading=جاري الجلب }
 
   // handleViewKYCImage — يفتح مودال عرض صورة هوية المستخدم
-  // bucket "id-documents" عام → الرابط المخزّن يعمل مباشرة بدون signed URL
-  const handleViewKYCImage = (docUrl: string) => {
-    setKycImageModal({ url: docUrl, loading: false })
+  // bucket خاص → نستخدم supabaseAdmin (service role) لإنشاء signed URL يعمل دائماً
+  const handleViewKYCImage = async (docUrl: string) => {
+    setKycImageModal({ url: '', loading: true })
+    try {
+      const pathPart = docUrl.split('/id-documents/')[1]
+      if (!pathPart) { setKycImageModal({ url: docUrl, loading: false }); return }
+      const client = supabaseAdmin ?? supabase
+      const { data, error } = await client.storage.from('id-documents').createSignedUrl(pathPart, 3600)
+      if (error || !data) { setKycImageModal({ url: docUrl, loading: false }); return }
+      setKycImageModal({ url: data.signedUrl, loading: false })
+    } catch {
+      setKycImageModal({ url: docUrl, loading: false })
+    }
   }
 
   // ── فحص صلاحية الأدمن من جدول profiles ──────────────────────
