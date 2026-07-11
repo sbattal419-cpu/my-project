@@ -445,15 +445,6 @@ export default function AdminDashboard() {
                     style={{ maxWidth: '100%', maxHeight: '60vh', borderRadius: 8, border: '1px solid #e2e8f0', display: 'block', margin: '0 auto' }}
                     onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
                   />
-                  <a
-                    href={kycImageModal.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="adm-doc-link"
-                    style={{ display: 'inline-block', marginTop: 10, fontSize: 14 }}
-                  >
-                    فتح الصورة في تاب جديد ↗
-                  </a>
                 </>
               )}
             </div>
