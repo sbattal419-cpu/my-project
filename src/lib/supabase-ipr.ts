@@ -5,6 +5,7 @@
 // للتعديل: ابحث عن اسم الجدول أو الوظيفة مثل: Rights / notifications / submitRating
 // ════════════════════════════════════════════════════════════════
 import { supabase } from './supabase'
+import { supabaseAdmin } from './supabase-admin'
 import type { RegisterResult } from './blockchain'
 import { hammingDistance, PHASH_THRESHOLD } from './blockchain'
 
@@ -97,8 +98,10 @@ export async function checkPerceptualDuplicate(
 // يحفظ شهادة جديدة: أولاً في Intellectual_Properties ثم في Rights
 // يُستخدم في: RegisterRightPage → handleRegister (الخطوة 2)
 export async function saveCertToSupabase(params: SaveCertParams): Promise<void> {
+  const db = supabaseAdmin ?? supabase
+
   // الخطوة 1: إدخال في Intellectual_Properties والحصول على ip_id
-  const { data: ipData, error: ipError } = await supabase
+  const { data: ipData, error: ipError } = await db
     .from('Intellectual_Properties')
     .insert({
       title:             params.title,
@@ -106,14 +109,13 @@ export async function saveCertToSupabase(params: SaveCertParams): Promise<void> 
       description:       params.description,
       registration_date: new Date().toISOString().slice(0, 10),
       status:            'pending',
-      owner_id:          params.userId,
     })
     .select('id')
     .single()
   if (ipError) throw ipError
 
   // الخطوة 2: إدخال في Rights مع ip_id المستخرج
-  const { error } = await supabase.from('Rights').insert({
+  const { error } = await db.from('Rights').insert({
     auth_user_id:    params.userId,
     wallet_address:  params.walletAddress,
     title:           params.title,
