@@ -5,6 +5,9 @@ const supabase = createClient(
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVvd2FuYXp5cmJka2xrZ3J1bWZnIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NDM2OTE4NiwiZXhwIjoyMDg5OTQ1MTg2fQ.VFgv1mD9j7Yj-D2lHz_rjd1FWBFQrbZrJiNL2sZuuU4'
 )
 
-// حذف السجل التجريبي
-await supabase.from('Intellectual_Properties').delete().eq('title', 'TEST')
-console.log('تم التنظيف')
+const { data: rights } = await supabase.from('Rights').select('*')
+const { data: ip } = await supabase.from('Intellectual_Properties').select('*')
+
+console.log('Rights:', rights?.length ?? 0, 'سجل')
+console.log('Intellectual_Properties:', ip?.length ?? 0, 'سجل')
+if (rights?.length > 0) console.log(JSON.stringify(rights, null, 2))
