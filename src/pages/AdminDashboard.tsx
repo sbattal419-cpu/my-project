@@ -164,14 +164,15 @@ export default function AdminDashboard() {
   // يُستدعى: عند تأكيد الصلاحية (isAdmin=true)
   const loadData = () => {
     setDataLoading(true)
+    const db = supabaseAdmin ?? supabase
     Promise.all([
-      supabase.from('Rights').select('*', { count: 'exact', head: true }),   // عدد الحقوق
-      supabase.from('profiles').select('*', { count: 'exact', head: true }), // عدد المستخدمين
-      supabase.from('Ip_files').select('*', { count: 'exact', head: true }), // عدد الملفات
-      supabase.from('Rights')
+      db.from('Rights').select('*', { count: 'exact', head: true }),
+      db.from('profiles').select('*', { count: 'exact', head: true }),
+      db.from('Ip_files').select('*', { count: 'exact', head: true }),
+      db.from('Rights')
         .select('id,auth_user_id,title,holder_name,ip_type,wallet_address,cert_id,tx_hash,created_at,status,review_note')
-        .order('created_at', { ascending: false }).limit(50), // آخر 50 حق
-      supabase.from('profiles').select('id,auth_user_id,full_name,email,role,created_at,national_id,id_document_url,kyc_status,kyc_note').order('created_at', { ascending: false }),
+        .order('created_at', { ascending: false }).limit(50),
+      db.from('profiles').select('id,auth_user_id,full_name,email,role,created_at,national_id,id_document_url,kyc_status,kyc_note').order('created_at', { ascending: false }),
     ]).then(([r, u, f, rightsData, usersData]) => {
       setStats({ rights: r.count ?? 0, users: u.count ?? 0, files: f.count ?? 0 })
       setRights((rightsData.data ?? []) as RightRow[])
