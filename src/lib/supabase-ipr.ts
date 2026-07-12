@@ -190,7 +190,8 @@ export async function updateRightStatus(
 // جلب كل شهادات مستخدم معين من جدول Rights مرتبة بالأحدث
 // يُستخدم في: CertificatesPage
 export async function getUserCerts(userId: string): Promise<RightsRow[]> {
-  const { data, error } = await supabase
+  const db = supabaseAdmin ?? supabase
+  const { data, error } = await db
     .from('Rights')
     .select('*')
     .eq('auth_user_id', userId)
@@ -203,11 +204,12 @@ export async function getUserCerts(userId: string): Promise<RightsRow[]> {
 // جلب كل الحقوق المسجّلة (حد أقصى 100) للأدمن أو السجل العام
 // يُستخدم في: AdminDashboard → تبويب الحقوق
 export async function getAllRights(): Promise<RightsRow[]> {
-  const { data, error } = await supabase
+  const db = supabaseAdmin ?? supabase
+  const { data, error } = await db
     .from('Rights')
     .select('*')
     .order('created_at', { ascending: false })
-    .limit(100) // لمنع جلب كميات ضخمة
+    .limit(100)
   if (error) throw error
   return (data ?? []) as RightsRow[]
 }
