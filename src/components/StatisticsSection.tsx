@@ -57,7 +57,7 @@ export default function StatisticsSection() {
   const [stats, setStats] = useState({ rights: 0, users: 0 })
 
   useEffect(() => {
-    getStatistics().then(setStats).catch(() => {})
+    getStatistics().then(setStats).catch((err) => console.error('getStatistics failed:', err))
   }, [])
 
   const yearsOfExperience = new Date().getFullYear() - FOUNDING_YEAR

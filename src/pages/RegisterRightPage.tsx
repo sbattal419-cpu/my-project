@@ -471,7 +471,7 @@ export default function RegisterRightPage() {
       if (user) {
         try {
           // الخطوة 2: حفظ الشهادة في Supabase → src/lib/supabase-ipr.ts → saveCertToSupabase
-          await saveCertToSupabase({
+          const { ipId } = await saveCertToSupabase({
             userId:         user.id,
             walletAddress:  wallet.address!,
             title:          form.title,
@@ -485,7 +485,7 @@ export default function RegisterRightPage() {
           })
           if (file) {
             // الخطوة 3: رفع الملف لـ Storage → src/lib/supabase-ipr.ts → uploadIPFile
-            try { await uploadIPFile(file, res.certId) } catch (e) { console.error('File upload error:', e) }
+            try { await uploadIPFile(file, res.certId, ipId) } catch (e) { console.error('File upload error:', e) }
           }
         } catch (sbErr: any) {
           console.error('Supabase save error:', sbErr)

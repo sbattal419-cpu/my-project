@@ -97,7 +97,7 @@ export async function checkPerceptualDuplicate(
 // ── saveCertToSupabase ────────────────────────────────────────
 // يحفظ شهادة جديدة: أولاً في Intellectual_Properties ثم في Rights
 // يُستخدم في: RegisterRightPage → handleRegister (الخطوة 2)
-export async function saveCertToSupabase(params: SaveCertParams): Promise<void> {
+export async function saveCertToSupabase(params: SaveCertParams): Promise<{ ipId: number }> {
   const SVCKEY = import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY as string
   const DBURL  = import.meta.env.VITE_SUPABASE_URL as string
 
@@ -147,43 +147,28 @@ export async function saveCertToSupabase(params: SaveCertParams): Promise<void> 
     block_number:    params.result.blockNumber,
     status:          'pending',
   })
+
+  return { ipId: ipRow.id }
 }
 
 // ── uploadIPFile ──────────────────────────────────────────────
 // يرفع الملف المحمي لـ Supabase Storage → bucket: ip-files
 // ثم يُسجّل سجلاً في جدول Ip_files لربط الملف بالشهادة
 // يُستخدم في: RegisterRightPage → handleRegister (الخطوة 3)
-export async function uploadIPFile(file: File, certId: string): Promise<void> {
+export async function uploadIPFile(file: File, certId: string, ipId: number): Promise<void> {
   const ext  = file.name.split('.').pop() ?? 'bin'
   const path = `${certId}/${Date.now()}.${ext}` // مسار فريد: {certId}/{timestamp}.{ext}
 
   const { error: uploadErr } = await supabase.storage.from('ip-files').upload(path, file)
   if (uploadErr) throw uploadErr
 
-  const { data: { user } } = await supabase.auth.getUser()
   const { error: dbErr } = await supabase.from('Ip_files').insert({
-    cert_id:      certId,
+    ip_id:        ipId,
     file_name:    file.name,
     file_type:    file.type || ext,
     uploaded_at:  new Date().toISOString().slice(0, 10), // تاريخ فقط بدون وقت
-    auth_user_id: user?.id ?? null,
   })
   if (dbErr) throw dbErr
-}
-
-// ── updateRightStatus ─────────────────────────────────────────
-// يغيّر حالة حق فكري (approved/rejected) ويضيف ملاحظة المراجعة
-// يُستخدم في: AdminDashboard → تبويب "إدارة الحقوق"
-export async function updateRightStatus(
-  id: number,
-  status: 'approved' | 'rejected',
-  reviewNote?: string
-): Promise<void> {
-  const { error } = await supabase
-    .from('Rights')
-    .update({ status, review_note: reviewNote ?? null })
-    .eq('id', id) // تحديث صف واحد بالـ id
-  if (error) throw error
 }
 
 // ── getUserCerts ──────────────────────────────────────────────
