@@ -175,11 +175,6 @@ export function truncateAddress(addr: string): string {
   return `${addr.slice(0, 6)}...${addr.slice(-4)}`                                 // أول 6 أحرف + آخر 4 أحرف
 }
 
-// truncateHash — اختصار هاش الوثيقة للعرض: 0x12345678...abcdef01
-export function truncateHash(hash: string): string {
-  return `${hash.slice(0, 10)}...${hash.slice(-8)}`
-}
-
 // ── hashFile — حساب هاش SHA-256 لملف ────────────────────────────────────────
 // يُستخدم كبصمة فريدة للملف لتسجيلها على البلوكشين
 // الخطوات:

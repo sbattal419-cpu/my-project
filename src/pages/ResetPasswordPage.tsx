@@ -41,7 +41,7 @@ export default function ResetPasswordPage() {
       if (error) throw error
       setDone(true)
       setTimeout(() => navigate('/login', { replace: true }), 3000)
-    } catch (err) {
+    } catch {
       setError('حدث خطأ، يرجى المحاولة مجدداً')
     } finally {
       setSubmitting(false)

@@ -146,7 +146,7 @@ async function loadSolcCompiler(): Promise<(input: string) => string> {
           const M = (window as any).Module
           const fn = M.cwrap('solidity_compile', 'string', ['string', 'number'])
           resolve(fn)
-        } catch (e) {
+        } catch {
           reject(new Error('فشل تهيئة المترجم'))
         }
       },
