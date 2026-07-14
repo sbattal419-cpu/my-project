@@ -20,6 +20,8 @@ import { useLang } from '../context/LanguageContext'
 import { IP_TYPES, BLOCKCHAIN } from '../config/blockchain.config'
 import type { CertificateData } from '../lib/blockchain'
 import WalletConnect from '../components/WalletConnect'
+import CertHistoryModal from '../components/CertHistoryModal'
+import CertificatePrintable from '../components/CertificatePrintable'
 
 const EASE = 'easeOut' as const
 
@@ -51,6 +53,14 @@ function CopyHashBtn({ hash }: { hash: string }) {
 function CertCard({ cert, onTransfer }: { cert: CertificateData; onTransfer: () => void }) {
   const { t, lang } = useLang()
   const ipType = IP_TYPES[cert.ipType] ?? IP_TYPES[0]
+  const [showHistory, setShowHistory] = useState(false)
+  const [printCert, setPrintCert] = useState<CertificateData | null>(null)
+
+  const handlePrint = () => {
+    setPrintCert(cert)
+    setTimeout(() => window.print(), 50)
+  }
+
   return (
     <motion.div
       className="cert-card"
@@ -58,6 +68,7 @@ function CertCard({ cert, onTransfer }: { cert: CertificateData; onTransfer: () 
       animate={{ opacity: 1, y: 0 }}
       transition={{ ease: EASE }}
     >
+      <CertificatePrintable cert={printCert} />
       <div className="cert-card-top">
         <span className="ip-badge" style={{ background: ipType.bg, color: ipType.color }}>
           {t(ipType.labelKey)}
@@ -128,6 +139,12 @@ function CertCard({ cert, onTransfer }: { cert: CertificateData; onTransfer: () 
           </svg>
         </a>
         <InfoTip term="Etherscan" explanation="موقع مستقل يعرض جميع معاملات البلوكشين. اضغط لرؤية عنوان محفظتك وجميع الحقوق المسجلة عليها بشكل عام وشفاف." />
+        <button className="btn-cert-explorer" onClick={() => setShowHistory(true)}>
+          {t('hist.btn')}
+        </button>
+        <button className="btn-cert-explorer" onClick={handlePrint}>
+          {t('cert.print.btn')}
+        </button>
         {cert.isValid && (
           <button className="btn-cert-transfer" onClick={onTransfer}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -138,6 +155,12 @@ function CertCard({ cert, onTransfer }: { cert: CertificateData; onTransfer: () 
           </button>
         )}
       </div>
+
+      <AnimatePresence>
+        {showHistory && (
+          <CertHistoryModal certId={cert.certId} onClose={() => setShowHistory(false)} />
+        )}
+      </AnimatePresence>
     </motion.div>
   )
 }

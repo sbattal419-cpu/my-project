@@ -16,6 +16,8 @@ import { fetchCertificate, verifyByHash, truncateAddress } from '../lib/blockcha
 import { IP_TYPES, BLOCKCHAIN } from '../config/blockchain.config'
 import { useLang } from '../context/LanguageContext'
 import InfoTip from '../components/InfoTip'
+import CertHistoryModal from '../components/CertHistoryModal'
+import CertificatePrintable from '../components/CertificatePrintable'
 import type { CertificateData } from '../lib/blockchain'
 
 const EASE = 'easeOut' as const
@@ -49,8 +51,17 @@ function CertResult({ cert }: { cert: CertificateData }) {
   const { t, lang } = useLang()
   const ipType = IP_TYPES[cert.ipType] ?? IP_TYPES[0]
   const verifyUrl = `${window.location.origin}/verify?id=${cert.certId}`
+  const [showHistory, setShowHistory] = useState(false)
+  const [printCert, setPrintCert] = useState<CertificateData | null>(null)
+
+  const handlePrint = () => {
+    setPrintCert(cert)
+    setTimeout(() => window.print(), 50)
+  }
+
   return (
     <div className="bc-verify-result">
+      <CertificatePrintable cert={printCert} />
       <div className="bc-verify-result-header">
         <div className="bc-verify-result-title-row">
           <span className="ip-badge" style={{ background: ipType.bg, color: ipType.color }}>
@@ -137,7 +148,19 @@ function CertResult({ cert }: { cert: CertificateData }) {
           explanation="موقع مستقل يعرض جميع معاملات شبكة Ethereum علناً. يمكنك التحقق من شهادتك بشكل مستقل تماماً دون الحاجة للمنصة."
           size={16}
         />
+        <button className="btn-bc-outline btn-bc-sm" onClick={() => setShowHistory(true)}>
+          {t('hist.btn')}
+        </button>
+        <button className="btn-bc-outline btn-bc-sm" onClick={handlePrint}>
+          {t('cert.print.btn')}
+        </button>
       </div>
+
+      <AnimatePresence>
+        {showHistory && (
+          <CertHistoryModal certId={cert.certId} onClose={() => setShowHistory(false)} />
+        )}
+      </AnimatePresence>
     </div>
   )
 }

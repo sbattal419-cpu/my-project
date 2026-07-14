@@ -95,6 +95,16 @@ export const CONTRACT_ABI = [
     name: 'IPRegistered',
     type: 'event',
   },
+  {
+    anonymous: false,
+    inputs: [
+      { indexed: true, name: 'certId', type: 'uint256' },
+      { indexed: true, name: 'from',   type: 'address' },
+      { indexed: true, name: 'to',     type: 'address' },
+    ],
+    name: 'CertificateTransferred',
+    type: 'event',
+  },
 ]
 
 // ════════════════════════════════════════════════════════════════
@@ -357,6 +367,62 @@ export async function transferCertOnChain(certId: string, toAddress: string): Pr
   const tx = await contract.transferCertificate(BigInt(certId), toAddress)         // أرسل معاملة البلوكشين
   const receipt = await tx.wait()                                                   // انتظر تأكيد الكتلة
   return receipt.hash                                                               // أرجع txHash للتسجيل والعرض
+}
+
+// ════════════════════════════════════════════════════════════════
+// SECTION: HISTORY — سجل أحداث الشهادة الكامل (تسجيل + كل عمليات النقل)
+// للتعديل: ابحث عن fetchCertificateHistory
+// ════════════════════════════════════════════════════════════════
+export interface HistoryEvent {
+  type: 'registered' | 'transferred'
+  txHash: string
+  blockNumber: number
+  timestamp: number | null   // Unix ms، أو null إذا تعذّر جلب وقت الكتلة
+  owner?: string             // لحدث التسجيل
+  from?: string               // لحدث النقل
+  to?: string                 // لحدث النقل
+}
+
+// fetchCertificateHistory — يجلب كل أحداث IPRegistered و CertificateTransferred
+// الخاصة بشهادة معينة، مرتّبة زمنياً من الأقدم للأحدث
+export async function fetchCertificateHistory(certId: string): Promise<HistoryEvent[]> {
+  const contract = await getContract()
+  const id = BigInt(certId)
+
+  const [registeredLogs, transferredLogs] = await Promise.all([
+    contract.queryFilter(contract.filters.IPRegistered(id)),
+    contract.queryFilter(contract.filters.CertificateTransferred(id)),
+  ])
+
+  const provider = contract.runner && 'getBlock' in contract.runner ? (contract.runner as any) : null
+
+  const events: HistoryEvent[] = []
+
+  for (const log of registeredLogs) {
+    const args = (log as ethers.EventLog).args
+    events.push({
+      type: 'registered',
+      txHash: log.transactionHash,
+      blockNumber: log.blockNumber,
+      timestamp: Number(args.timestamp) * 1000,
+      owner: args.owner,
+    })
+  }
+
+  for (const log of transferredLogs) {
+    const args = (log as ethers.EventLog).args
+    const block = provider ? await provider.getBlock(log.blockNumber) : null
+    events.push({
+      type: 'transferred',
+      txHash: log.transactionHash,
+      blockNumber: log.blockNumber,
+      timestamp: block ? block.timestamp * 1000 : null,
+      from: args.from,
+      to: args.to,
+    })
+  }
+
+  return events.sort((a, b) => a.blockNumber - b.blockNumber)
 }
 
 // isContractDeployed — تحقق هل نشرنا العقد الذكي فعلاً (ليس العنوان الافتراضي)
