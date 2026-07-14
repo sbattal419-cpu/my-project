@@ -210,7 +210,8 @@ const T: Record<string, Record<Lang, string>> = {
   'hist.to':             { ar: 'إلى',                                                        en: 'to' },
   'hist.unknown.date':   { ar: 'تاريخ غير معروف',                                           en: 'Unknown date' },
 
-  'cert.print.btn':      { ar: 'تنزيل / طباعة الشهادة',                                     en: 'Download / Print Certificate' },
+  'cert.print.btn':      { ar: 'تنزيل الشهادة',                                             en: 'Download Certificate' },
+  'cert.download.loading': { ar: 'جاري التنزيل...',                                         en: 'Downloading...' },
   'cert.print.title':    { ar: 'شهادة ملكية فكرية',                                          en: 'Intellectual Property Certificate' },
   'cert.print.issued':   { ar: 'صادرة عن منصة تسجيل الحقوق الفكرية بتقنية البلوكتشين',      en: 'Issued by the Blockchain IP Rights Registration Platform' },
   'cert.print.verify':   { ar: 'يمكن التحقق من هذه الشهادة في أي وقت عبر مسح رمز QR أو زيارة',  en: 'This certificate can be verified anytime by scanning the QR code or visiting' },

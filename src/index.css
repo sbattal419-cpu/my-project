@@ -2949,12 +2949,13 @@ body {
 }
 .cert-stamp {
   position: absolute;
-  bottom: 14px;
+  bottom: 58px;
   left: 14px;
   opacity: 0.18;
   transform: rotate(-15deg);
   pointer-events: none;
   transition: opacity 0.3s ease;
+  z-index: 0;
 }
 .cert-card:hover .cert-stamp { opacity: 0.28; }
 
@@ -2983,7 +2984,7 @@ body {
 .cert-card-hash-label { font-size: 11px; color: var(--c-gray-400); font-weight: 600; }
 .cert-card-hash-val { font-size: 12px; font-family: monospace; color: var(--c-gray-600); }
 
-.cert-card-actions { display: flex; gap: 8px; margin-top: 4px; }
+.cert-card-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
 
 .btn-cert-explorer {
   display: inline-flex;
@@ -3007,6 +3008,7 @@ body {
 .btn-cert-transfer {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
   padding: 7px 14px;
   border-radius: 7px;
@@ -3018,7 +3020,7 @@ body {
   font-weight: 700;
   cursor: pointer;
   transition: var(--transition);
-  margin-right: auto;
+  flex: 1 1 100%;
 }
 
 .btn-cert-transfer:hover { background: var(--c-blue-hover); transform: translateY(-1px); }
@@ -5144,33 +5146,29 @@ body {
 
 /* ════════════════════════════════════════════════════════════════
    PRINTABLE CERTIFICATE — src/components/CertificatePrintable.tsx
-   مخفية دائماً على الشاشة، تظهر فقط عند الطباعة (window.print)
+   مُبعدة عن الشاشة (خارج viewport) لكنها مُخطَّطة (laid out) دائماً
+   ليتمكن html2canvas من التقاطها وتحويلها لملف PDF يُنزَّل مباشرة
    ════════════════════════════════════════════════════════════════ */
-.cert-printable { display: none; }
-
-@media print {
-  body * { visibility: hidden; }
-  .cert-printable, .cert-printable * { visibility: visible; }
-  .cert-printable {
-    display: block !important;
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    padding: 40px;
-    background: #fff;
-    color: #0f172a;
-  }
-  .cert-printable-border {
-    border: 3px double #2563eb;
-    border-radius: 12px;
-    padding: 40px;
-    text-align: center;
-  }
-  .cert-printable-title { font-size: 26px; font-weight: 800; color: #1d4ed8; margin: 0 0 6px; }
-  .cert-printable-subtitle { font-size: 13px; color: #475569; margin: 0 0 28px; }
-  .cert-printable-work-title { font-size: 20px; font-weight: 700; margin: 18px 0 4px; }
-  .cert-printable-row { display: flex; justify-content: space-between; max-width: 460px; margin: 10px auto; font-size: 13px; }
-  .cert-printable-row b { color: #1e293b; }
-  .cert-printable-qr { margin: 24px auto 6px; }
-  .cert-printable-footer { font-size: 11px; color: #64748b; margin-top: 20px; }
+.cert-printable {
+  position: fixed;
+  top: 0;
+  left: -9999px;
+  width: 620px;
+  padding: 40px;
+  background: #fff;
+  color: #0f172a;
+  z-index: -1;
 }
+.cert-printable-border {
+  border: 3px double #2563eb;
+  border-radius: 12px;
+  padding: 40px;
+  text-align: center;
+}
+.cert-printable-title { font-size: 26px; font-weight: 800; color: #1d4ed8; margin: 0 0 6px; }
+.cert-printable-subtitle { font-size: 13px; color: #475569; margin: 0 0 28px; }
+.cert-printable-work-title { font-size: 20px; font-weight: 700; margin: 18px 0 4px; }
+.cert-printable-row { display: flex; justify-content: space-between; max-width: 460px; margin: 10px auto; font-size: 13px; }
+.cert-printable-row b { color: #1e293b; }
+.cert-printable-qr { margin: 24px auto 6px; }
+.cert-printable-footer { font-size: 11px; color: #64748b; margin-top: 20px; }

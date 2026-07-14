@@ -185,6 +185,18 @@ export async function getUserCerts(userId: string): Promise<RightsRow[]> {
   return (data ?? []) as RightsRow[]
 }
 
+// ── getCertTxHash ──────────────────────────────────────────────
+// جلب هاش معاملة تسجيل شهادة بمعرّفها (للربط المباشر بـ Etherscan)
+export async function getCertTxHash(certId: string): Promise<string | null> {
+  const { data, error } = await supabase
+    .from('Rights')
+    .select('tx_hash')
+    .eq('cert_id', certId)
+    .maybeSingle()
+  if (error || !data) return null
+  return (data as { tx_hash: string }).tx_hash
+}
+
 // ── getAllRights ───────────────────────────────────────────────
 // جلب كل الحقوق المسجّلة (حد أقصى 100) للأدمن أو السجل العام
 // يُستخدم في: AdminDashboard → تبويب الحقوق

@@ -22,6 +22,7 @@ import type { CertificateData } from '../lib/blockchain'
 import WalletConnect from '../components/WalletConnect'
 import CertHistoryModal from '../components/CertHistoryModal'
 import CertificatePrintable from '../components/CertificatePrintable'
+import { downloadCertificatePdf } from '../lib/certPdf'
 
 const EASE = 'easeOut' as const
 
@@ -55,10 +56,20 @@ function CertCard({ cert, onTransfer }: { cert: CertificateData; onTransfer: () 
   const ipType = IP_TYPES[cert.ipType] ?? IP_TYPES[0]
   const [showHistory, setShowHistory] = useState(false)
   const [printCert, setPrintCert] = useState<CertificateData | null>(null)
+  const [downloading, setDownloading] = useState(false)
+  const printRef = useRef<HTMLDivElement>(null)
 
-  const handlePrint = () => {
+  const handleDownload = async () => {
+    if (downloading) return
+    setDownloading(true)
     setPrintCert(cert)
-    setTimeout(() => window.print(), 50)
+    await new Promise(requestAnimationFrame)
+    await new Promise(requestAnimationFrame)
+    try {
+      if (printRef.current) await downloadCertificatePdf(printRef.current, `certificate-${cert.certId}`)
+    } finally {
+      setDownloading(false)
+    }
   }
 
   return (
@@ -68,7 +79,7 @@ function CertCard({ cert, onTransfer }: { cert: CertificateData; onTransfer: () 
       animate={{ opacity: 1, y: 0 }}
       transition={{ ease: EASE }}
     >
-      <CertificatePrintable cert={printCert} />
+      <CertificatePrintable ref={printRef} cert={printCert} />
       <div className="cert-card-top">
         <span className="ip-badge" style={{ background: ipType.bg, color: ipType.color }}>
           {t(ipType.labelKey)}
@@ -128,7 +139,7 @@ function CertCard({ cert, onTransfer }: { cert: CertificateData; onTransfer: () 
 
       <div className="cert-card-actions">
         <a
-          href={`${BLOCKCHAIN.EXPLORER}/address/${cert.owner}`}
+          href={cert.txHash ? `${BLOCKCHAIN.EXPLORER}/tx/${cert.txHash}` : `${BLOCKCHAIN.EXPLORER}/address/${cert.owner}`}
           target="_blank"
           rel="noopener noreferrer"
           className="btn-cert-explorer"
@@ -138,12 +149,12 @@ function CertCard({ cert, onTransfer }: { cert: CertificateData; onTransfer: () 
             <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" />
           </svg>
         </a>
-        <InfoTip term="Etherscan" explanation="موقع مستقل يعرض جميع معاملات البلوكشين. اضغط لرؤية عنوان محفظتك وجميع الحقوق المسجلة عليها بشكل عام وشفاف." />
+        <InfoTip term="Etherscan" explanation="موقع مستقل يعرض معاملات البلوكشين. اضغط لرؤية معاملة تسجيل هذه الشهادة تحديداً وإثبات توثيقها بشكل علني وشفاف." />
         <button className="btn-cert-explorer" onClick={() => setShowHistory(true)}>
           {t('hist.btn')}
         </button>
-        <button className="btn-cert-explorer" onClick={handlePrint}>
-          {t('cert.print.btn')}
+        <button className="btn-cert-explorer" onClick={handleDownload} disabled={downloading}>
+          {downloading ? t('cert.download.loading') : t('cert.print.btn')}
         </button>
         {cert.isValid && (
           <button className="btn-cert-transfer" onClick={onTransfer}>
@@ -209,6 +220,7 @@ export default function CertificatesPage() {
             holderName:   r.holder_name,
             registeredAt: new Date(r.created_at),
             isValid:      true,
+            txHash:       r.tx_hash,
           })))
         } else if (wallet.address) {
           // fallback: إذا Supabase فارغة، اجلب من البلوكشين مباشرة

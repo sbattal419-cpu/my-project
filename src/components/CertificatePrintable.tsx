@@ -1,14 +1,15 @@
 // ════════════════════════════════════════════════════════════════
 // FILE: src/components/CertificatePrintable.tsx
-// طبقة شهادة مخفية على الشاشة (display:none) تظهر فقط عند الطباعة/التنزيل كـ PDF
-// عبر window.print() — انظر index.css قسم PRINTABLE CERTIFICATE
+// طبقة شهادة مُبعدة عن الشاشة (خارج viewport) تُلتقط بواسطة html2canvas
+// وتُحوَّل إلى ملف PDF يُنزَّل مباشرة — انظر src/lib/certPdf.ts
 // ════════════════════════════════════════════════════════════════
+import { forwardRef } from 'react'
 import { QRCodeSVG } from 'qrcode.react'
 import { IP_TYPES } from '../config/blockchain.config'
 import { useLang } from '../context/LanguageContext'
 import type { CertificateData } from '../lib/blockchain'
 
-export default function CertificatePrintable({ cert }: { cert: CertificateData | null }) {
+const CertificatePrintable = forwardRef<HTMLDivElement, { cert: CertificateData | null }>(({ cert }, ref) => {
   const { t, lang } = useLang()
   if (!cert) return null
 
@@ -16,7 +17,7 @@ export default function CertificatePrintable({ cert }: { cert: CertificateData |
   const verifyUrl = `${window.location.origin}/verify?id=${cert.certId}`
 
   return (
-    <div className="cert-printable">
+    <div className="cert-printable" ref={ref}>
       <div className="cert-printable-border">
         <p className="cert-printable-title">{t('cert.print.title')}</p>
         <p className="cert-printable-subtitle">{t('cert.print.issued')}</p>
@@ -40,4 +41,6 @@ export default function CertificatePrintable({ cert }: { cert: CertificateData |
       </div>
     </div>
   )
-}
+})
+
+export default CertificatePrintable
