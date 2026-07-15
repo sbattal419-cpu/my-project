@@ -158,9 +158,11 @@ export default function CertificatesPage() {
 
   const isReady = wallet.isConnected && wallet.isSepolia
 
-  // loadCerts — جلب الشهادات من Supabase أو البلوكشين
-  // إذا user موجود → getUserCerts من Supabase (أسرع وأكمل بيانات)
-  // إذا لا user → fetchOwnerCertificates من البلوكشين (بعنوان المحفظة)
+  // loadCerts — جلب الشهادات من البلوكشين أو Supabase
+  // إذا في محفظة متصلة → fetchOwnerCertificates من البلوكشين (مصدر الحقيقة الفعلي للملكية،
+  //   يعكس أي عملية نقل ملكية صحيحة — بعكس Supabase التي لا تُحدَّث تلقائياً عند النقل)
+  // إذا لا محفظة متصلة لكن user مسجّل → getUserCerts من Supabase (سجل تاريخي بالحساب،
+  //   تقريبي وقد لا يعكس آخر عمليات نقل حصلت من محفظة أخرى)
 
   // userId مستخرج مسبقاً من user?.id لتجنب حلقة تحميل لانهائية:
   // user هو كائن Object يتغير reference عند كل render حتى لو البيانات نفسها
@@ -172,31 +174,26 @@ export default function CertificatesPage() {
     setLoading(true)
     setLoadError(null)
     try {
-      if (userId) {
-        const rows = await getUserCerts(userId)
-        if (rows.length > 0) {
-          setSource('supabase')
-          setCerts(rows.map((r: RightsRow) => ({
-            certId:       r.cert_id,
-            owner:        r.wallet_address,
-            documentHash: r.document_hash,
-            ipType:       r.ip_type,
-            title:        r.title,
-            description:  r.description,
-            holderName:   r.holder_name,
-            registeredAt: new Date(r.created_at),
-            isValid:      true,
-          })))
-        } else if (wallet.address) {
-          // fallback: إذا Supabase فارغة، اجلب من البلوكشين مباشرة
-          setSource('blockchain')
-          const data = await fetchOwnerCertificates(wallet.address)
-          setCerts(data)
-        }
-      } else if (wallet.address) {
+      if (wallet.address) {
+        // المحفظة المتصلة هي مصدر الحقيقة الحالي للملكية — تعكس أي نقل ملكية فوراً
         setSource('blockchain')
         const data = await fetchOwnerCertificates(wallet.address)
         setCerts(data)
+      } else if (userId) {
+        // لا محفظة متصلة: نعرض سجل Supabase كتقريب (قد لا يعكس نقل ملكية حديث)
+        const rows = await getUserCerts(userId)
+        setSource('supabase')
+        setCerts(rows.map((r: RightsRow) => ({
+          certId:       r.cert_id,
+          owner:        r.wallet_address,
+          documentHash: r.document_hash,
+          ipType:       r.ip_type,
+          title:        r.title,
+          description:  r.description,
+          holderName:   r.holder_name,
+          registeredAt: new Date(r.created_at),
+          isValid:      true,
+        })))
       }
     } catch (err) {
       setLoadError((err as Error).message || 'فشل تحميل الشهادات')
