@@ -198,6 +198,24 @@ const T: Record<string, Record<Lang, string>> = {
   'vfy.err.no.hash': { ar: 'لم يتم العثور على شهادة مسجلة بهذا الهاش',      en: 'No registered certificate found with this hash' },
   'vfy.err.fail':    { ar: 'فشل التحقق. تأكد من صحة القيمة المدخلة.',        en: 'Verification failed. Check the entered value.' },
 
+  'hist.btn':            { ar: 'السجل التاريخي',                                            en: 'History' },
+  'hist.title':          { ar: 'السجل التاريخي للشهادة',                                    en: 'Certificate History' },
+  'hist.loading':        { ar: 'جاري تحميل السجل من البلوكتشين...',                        en: 'Loading history from the blockchain...' },
+  'hist.empty':          { ar: 'لا يوجد سجل بعد',                                            en: 'No history yet' },
+  'hist.err':            { ar: 'فشل تحميل السجل التاريخي',                                  en: 'Failed to load history' },
+  'hist.registered':     { ar: 'تسجيل الحق',                                                en: 'Right Registered' },
+  'hist.transferred':    { ar: 'تحويل الملكية',                                              en: 'Ownership Transferred' },
+  'hist.owner':          { ar: 'المالك',                                                     en: 'Owner' },
+  'hist.from':           { ar: 'من',                                                         en: 'from' },
+  'hist.to':             { ar: 'إلى',                                                        en: 'to' },
+  'hist.unknown.date':   { ar: 'تاريخ غير معروف',                                           en: 'Unknown date' },
+
+  'cert.print.btn':      { ar: 'تنزيل الشهادة',                                             en: 'Download Certificate' },
+  'cert.download.loading': { ar: 'جاري التنزيل...',                                         en: 'Downloading...' },
+  'cert.print.title':    { ar: 'شهادة ملكية فكرية',                                          en: 'Intellectual Property Certificate' },
+  'cert.print.issued':   { ar: 'صادرة عن منصة تسجيل الحقوق الفكرية بتقنية البلوكتشين',      en: 'Issued by the Blockchain IP Rights Registration Platform' },
+  'cert.print.verify':   { ar: 'يمكن التحقق من هذه الشهادة في أي وقت عبر مسح رمز QR أو زيارة',  en: 'This certificate can be verified anytime by scanning the QR code or visiting' },
+
   // RegisterRightPage
   'rr.step1':           { ar: 'بيانات الحق',                         en: 'Right Data' },
   'rr.step2':           { ar: 'تأكيد ودفع',                          en: 'Confirm & Pay' },

@@ -4,6 +4,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Link } from 'react-router-dom'
+import { QRCodeSVG } from 'qrcode.react'
 import { useWallet } from '../hooks/useWallet'
 import { registerIPOnChain, hashFile, computePerceptualHash, isContractDeployed } from '../lib/blockchain'
 import { saveCertToSupabase, uploadIPFile, checkPerceptualDuplicate, type ExtraFields } from '../lib/supabase-ipr'
@@ -1050,6 +1051,17 @@ export default function RegisterRightPage() {
                   </span>
                   <span className="bc-cert-rval">{result.blockNumber}</span>
                 </div>
+              </div>
+
+              <div className="bc-verify-qr" style={{ margin: '20px auto 0' }}>
+                <QRCodeSVG
+                  value={`${window.location.origin}/verify?id=${result.certId}`}
+                  size={120}
+                  bgColor="transparent"
+                  fgColor="#60a5fa"
+                  level="M"
+                />
+                <p className="bc-qr-label">{t('vfy.qr.label')}</p>
               </div>
 
               <div className="bc-success-actions">

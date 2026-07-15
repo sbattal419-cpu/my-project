@@ -22,6 +22,7 @@ interface Stats { rights: number; users: number; files: number }
 interface RightRow {
   id: number
   auth_user_id: string | null
+  ip_id: number | null
   title: string
   holder_name: string
   ip_type: number
@@ -31,6 +32,14 @@ interface RightRow {
   created_at: string
   status: string | null
   review_note: string | null
+}
+
+interface FileRow {
+  id: number
+  ip_id: number | null
+  file_name: string
+  file_type: string
+  uploaded_at: string
 }
 
 interface UserRow {
@@ -66,7 +75,8 @@ export default function AdminDashboard() {
   const [stats,       setStats]       = useState<Stats>({ rights: 0, users: 0, files: 0 })
   const [rights,      setRights]      = useState<RightRow[]>([])
   const [users,       setUsers]       = useState<UserRow[]>([])
-  const [activeTab,   setActiveTab]   = useState<'rights' | 'users' | 'kyc' | 'contract'>('rights')
+  const [files,       setFiles]       = useState<FileRow[]>([])
+  const [activeTab,   setActiveTab]   = useState<'rights' | 'users' | 'kyc' | 'contract' | 'files'>('rights')
   const [dataLoading, setDataLoading] = useState(true)
 
   // ── حالة نشر العقد الذكي ──────────────────────────────────────
@@ -147,13 +157,17 @@ export default function AdminDashboard() {
       db.from('profiles').select('*', { count: 'exact', head: true }),
       db.from('Ip_files').select('*', { count: 'exact', head: true }),
       db.from('Rights')
-        .select('id,auth_user_id,title,holder_name,ip_type,wallet_address,cert_id,tx_hash,created_at,status,review_note')
+        .select('id,auth_user_id,ip_id,title,holder_name,ip_type,wallet_address,cert_id,tx_hash,created_at,status,review_note')
         .order('created_at', { ascending: false }).limit(50),
       db.from('profiles').select('id,auth_user_id,full_name,email,role,created_at,national_id,id_document_url,kyc_status,kyc_note').order('created_at', { ascending: false }),
-    ]).then(([r, u, f, rightsData, usersData]) => {
+      db.from('Ip_files')
+        .select('id,ip_id,file_name,file_type,uploaded_at')
+        .order('uploaded_at', { ascending: false }).limit(100),
+    ]).then(([r, u, f, rightsData, usersData, filesData]) => {
       setStats({ rights: r.count ?? 0, users: u.count ?? 0, files: f.count ?? 0 })
       setRights((rightsData.data ?? []) as RightRow[])
       setUsers((usersData.data ?? []) as UserRow[])
+      setFiles((filesData.data ?? []) as FileRow[])
       setDataLoading(false)
     })
   }
@@ -444,7 +458,7 @@ export default function AdminDashboard() {
         <div className="adm-stats-row">
           <StatCard icon="📋" label="الحقوق المسجلة"  value={stats.rights} color="#2563eb" onClick={() => setActiveTab('rights')} />
           <StatCard icon="👥" label="المستخدمون"      value={stats.users}  color="#7c3aed" onClick={() => setActiveTab('users')} />
-          <StatCard icon="📁" label="الملفات المرفوعة" value={stats.files} color="#059669" />
+          <StatCard icon="📁" label="الملفات المرفوعة" value={stats.files} color="#059669" onClick={() => setActiveTab('files')} />
         </div>
 
         <div className="adm-tabs">
@@ -459,6 +473,9 @@ export default function AdminDashboard() {
             {users.filter(u => u.kyc_status === 'pending').length > 0 && (
               <span className="adm-tab-badge">{users.filter(u => u.kyc_status === 'pending').length}</span>
             )}
+          </button>
+          <button className={`adm-tab${activeTab === 'files' ? ' adm-tab-active' : ''}`} onClick={() => setActiveTab('files')}>
+            الملفات المرفوعة
           </button>
           <button className={`adm-tab${activeTab === 'contract' ? ' adm-tab-active' : ''}`} onClick={() => setActiveTab('contract')}>
             العقد الذكي
@@ -678,6 +695,38 @@ export default function AdminDashboard() {
               </tbody>
             </table>
           </div>
+        ) : activeTab === 'files' ? (
+          <div className="adm-table-wrap">
+            <table className="adm-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>اسم الملف</th>
+                  <th>النوع</th>
+                  <th>العمل المرتبط</th>
+                  <th>صاحب الحق</th>
+                  <th>تاريخ الرفع</th>
+                </tr>
+              </thead>
+              <tbody>
+                {files.length === 0 ? (
+                  <tr><td colSpan={6} className="adm-empty-cell">لا توجد ملفات مرفوعة</td></tr>
+                ) : files.map((f, i) => {
+                  const right = rights.find(r => r.ip_id === f.ip_id) // ربط الملف بالحق عبر ip_id المشترك
+                  return (
+                    <tr key={f.id}>
+                      <td className="adm-td-num">{i + 1}</td>
+                      <td className="adm-td-title">{f.file_name || '—'}</td>
+                      <td>{f.file_type || '—'}</td>
+                      <td>{right?.title || '—'}</td>
+                      <td>{right?.holder_name || '—'}</td>
+                      <td className="adm-td-date">{f.uploaded_at ? new Date(f.uploaded_at).toLocaleDateString('ar-EG') : '—'}</td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
         ) : (
           <div className="adm-table-wrap">
             <table className="adm-table">
@@ -721,7 +770,7 @@ function StatCard({ icon, label, value, color, onClick }: { icon: string; label:
     <div className={`adm-stat-card${onClick ? ' adm-stat-card-link' : ''}`} onClick={onClick} role={onClick ? 'button' : undefined}>
       <div className="adm-stat-icon" style={{ background: color + '18', color }}>{icon}</div>
       <div>
-        <p className="adm-stat-value" style={{ color }}>{value.toLocaleString('ar-EG')}</p>
+        <p className="adm-stat-value" style={{ color }}>{value.toLocaleString('en-US')}</p>
         <p className="adm-stat-label">{label}</p>
       </div>
       {onClick && (

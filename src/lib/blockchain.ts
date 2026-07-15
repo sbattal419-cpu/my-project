@@ -95,6 +95,16 @@ export const CONTRACT_ABI = [
     name: 'IPRegistered',
     type: 'event',
   },
+  {
+    anonymous: false,
+    inputs: [
+      { indexed: true, name: 'certId', type: 'uint256' },
+      { indexed: true, name: 'from',   type: 'address' },
+      { indexed: true, name: 'to',     type: 'address' },
+    ],
+    name: 'CertificateTransferred',
+    type: 'event',
+  },
 ]
 
 // ════════════════════════════════════════════════════════════════
@@ -163,11 +173,6 @@ export function buildDocumentHash(data: {
 // truncateAddress — اختصار عنوان المحفظة للعرض: 0x1234...abcd
 export function truncateAddress(addr: string): string {
   return `${addr.slice(0, 6)}...${addr.slice(-4)}`                                 // أول 6 أحرف + آخر 4 أحرف
-}
-
-// truncateHash — اختصار هاش الوثيقة للعرض: 0x12345678...abcdef01
-export function truncateHash(hash: string): string {
-  return `${hash.slice(0, 10)}...${hash.slice(-8)}`
 }
 
 // ── hashFile — حساب هاش SHA-256 لملف ────────────────────────────────────────
@@ -305,6 +310,7 @@ export interface CertificateData {
   holderName: string
   registeredAt: Date
   isValid: boolean
+  txHash?: string          // هاش معاملة التسجيل (متوفر فقط عند الجلب من Supabase)
 }
 
 // ── fetchCertificate — جلب بيانات شهادة من البلوكشين بـ certId ──────────────
@@ -344,10 +350,34 @@ export async function fetchOwnerCertificates(address: string): Promise<Certifica
   const ids: bigint[] = await contract.getOwnerCertificates(address)               // اجلب كل IDs الشهادات لهذا العنوان
 
   // Promise.all تجلب كل الشهادات بالتوازي (أسرع من تسلسلي)
+  // نجلب هاش معاملة التسجيل بالتوازي أيضاً (fallback للشهادات اللي ما إلها صف بـ Supabase)
   const certs = await Promise.all(
-    ids.map(id => fetchCertificate(id.toString()))                                  // BigInt → string للـ fetchCertificate
+    ids.map(async id => {
+      const [cert, txHash] = await Promise.all([
+        fetchCertificate(id.toString()),
+        fetchRegistrationTxHash(id.toString()),
+      ])
+      return { ...cert, txHash: txHash ?? undefined }
+    })
   )
   return certs.reverse()                                                            // اعكس الترتيب لعرض الأحدث أولاً
+}
+
+// ── fetchRegistrationTxHash — هاش معاملة تسجيل شهادة عبر حدث IPRegistered ────
+// fallback عندما لا يتوفر tx_hash من Supabase (شهادات ما إلها صف بالجدول)
+export async function fetchRegistrationTxHash(certId: string): Promise<string | null> {
+  try {
+    const contract = await getContract()
+    const id = BigInt(certId)
+    const provider = contract.runner as any
+    const address = await contract.getAddress()
+    const latest = await provider.getBlockNumber()
+    const deployBlock = await findDeploymentBlock(provider, address)
+    const logs = await queryFilterChunked(contract, contract.filters.IPRegistered(id), deployBlock, latest)
+    return (logs[0] as any)?.transactionHash ?? null
+  } catch {
+    return null
+  }
 }
 
 // ── transferCertOnChain — نقل ملكية شهادة لعنوان آخر ─────────────────────────
@@ -357,6 +387,115 @@ export async function transferCertOnChain(certId: string, toAddress: string): Pr
   const tx = await contract.transferCertificate(BigInt(certId), toAddress)         // أرسل معاملة البلوكشين
   const receipt = await tx.wait()                                                   // انتظر تأكيد الكتلة
   return receipt.hash                                                               // أرجع txHash للتسجيل والعرض
+}
+
+// ════════════════════════════════════════════════════════════════
+// SECTION: HISTORY — سجل أحداث الشهادة الكامل (تسجيل + كل عمليات النقل)
+// للتعديل: ابحث عن fetchCertificateHistory
+// ════════════════════════════════════════════════════════════════
+export interface HistoryEvent {
+  type: 'registered' | 'transferred'
+  txHash: string
+  blockNumber: number
+  timestamp: number | null   // Unix ms، أو null إذا تعذّر جلب وقت الكتلة
+  owner?: string             // لحدث التسجيل
+  from?: string               // لحدث النقل
+  to?: string                 // لحدث النقل
+}
+
+// MAX_LOG_RANGE — أقصى عدد كتل بالاستعلام الواحد (RPC العامة مثل rpc.sepolia.org
+// ترفض eth_getLogs إذا تجاوز المدى من الكتلة 0 حتى الأحدث — نُقسِّم الاستعلام لدفعات آمنة)
+const MAX_LOG_RANGE = 5000
+
+// findDeploymentBlock — يحدّد رقم كتلة نشر العقد عبر بحث ثنائي (binary search) على eth_getCode
+// أسرع بكثير من مسح كل السجل من الكتلة 0، ويُخزَّن بالنتيجة بـ localStorage لتفادي إعادة البحث
+async function findDeploymentBlock(provider: any, address: string): Promise<number> {
+  const cacheKey = `ipr_deploy_block_${address.toLowerCase()}`
+  const cached = localStorage.getItem(cacheKey)
+  if (cached) return Number(cached)
+
+  try {
+    let lo = 0
+    let hi = await provider.getBlockNumber()
+    const latestCode = await provider.getCode(address, hi)
+    if (latestCode === '0x') return 0 // العقد غير منشور فعلياً على هذا العنوان
+
+    while (lo < hi) {
+      const mid = Math.floor((lo + hi) / 2)
+      const code = await provider.getCode(address, mid)
+      if (code === '0x') lo = mid + 1
+      else hi = mid
+    }
+    localStorage.setItem(cacheKey, String(lo))
+    return lo
+  } catch {
+    return 0 // تعذّر البحث الثنائي → نبدأ من الصفر مع التقسيم لدفعات
+  }
+}
+
+// queryFilterChunked — يُقسِّم استعلام eth_getLogs لدفعات بحجم MAX_LOG_RANGE
+// لتفادي رفض RPC العامة للمدى الواسع، مع تشغيل دفعات محدودة بالتوازي
+async function queryFilterChunked(contract: any, filter: any, fromBlock: number, toBlock: number) {
+  const ranges: [number, number][] = []
+  for (let start = fromBlock; start <= toBlock; start += MAX_LOG_RANGE) {
+    ranges.push([start, Math.min(start + MAX_LOG_RANGE - 1, toBlock)])
+  }
+
+  const CONCURRENCY = 5
+  const results: any[] = []
+  for (let i = 0; i < ranges.length; i += CONCURRENCY) {
+    const batch = ranges.slice(i, i + CONCURRENCY)
+    const batchResults = await Promise.all(
+      batch.map(([from, to]) => contract.queryFilter(filter, from, to).catch(() => []))
+    )
+    for (const r of batchResults) results.push(...r)
+  }
+  return results
+}
+
+// fetchCertificateHistory — يجلب كل أحداث IPRegistered و CertificateTransferred
+// الخاصة بشهادة معينة، مرتّبة زمنياً من الأقدم للأحدث
+export async function fetchCertificateHistory(certId: string): Promise<HistoryEvent[]> {
+  const contract = await getContract()
+  const id = BigInt(certId)
+  const provider = contract.runner as any
+  const address = await contract.getAddress()
+
+  const latest = await provider.getBlockNumber()
+  const deployBlock = await findDeploymentBlock(provider, address)
+
+  const [registeredLogs, transferredLogs] = await Promise.all([
+    queryFilterChunked(contract, contract.filters.IPRegistered(id), deployBlock, latest),
+    queryFilterChunked(contract, contract.filters.CertificateTransferred(id), deployBlock, latest),
+  ])
+
+  const events: HistoryEvent[] = []
+
+  for (const log of registeredLogs) {
+    const args = (log as ethers.EventLog).args
+    events.push({
+      type: 'registered',
+      txHash: log.transactionHash,
+      blockNumber: log.blockNumber,
+      timestamp: Number(args.timestamp) * 1000,
+      owner: args.owner,
+    })
+  }
+
+  for (const log of transferredLogs) {
+    const args = (log as ethers.EventLog).args
+    const block = provider ? await provider.getBlock(log.blockNumber) : null
+    events.push({
+      type: 'transferred',
+      txHash: log.transactionHash,
+      blockNumber: log.blockNumber,
+      timestamp: block ? block.timestamp * 1000 : null,
+      from: args.from,
+      to: args.to,
+    })
+  }
+
+  return events.sort((a, b) => a.blockNumber - b.blockNumber)
 }
 
 // isContractDeployed — تحقق هل نشرنا العقد الذكي فعلاً (ليس العنوان الافتراضي)

@@ -4,7 +4,7 @@ pragma solidity ^0.8.20;
 /// @title IPRightsRegistry - منظومة تسجيل الحقوق الفكرية على البلوكتشين
 contract IPRightsRegistry {
 
-    enum IPType { Copyright, Trademark, Patent, Consultation }
+    enum IPType { Copyright, Trademark, Patent }
 
     struct Certificate {
         uint256 id;
@@ -48,7 +48,7 @@ contract IPRightsRegistry {
         string  calldata holderName
     ) external returns (uint256 certId) {
         require(documentHash != bytes32(0),        "Hash cannot be empty");
-        require(ipType <= 3,                        "Invalid IP type");
+        require(ipType <= 2,                        "Invalid IP type");
         require(hashToCertId[documentHash] == 0,   "Already registered");
         require(bytes(title).length > 0,           "Title required");
 
@@ -99,6 +99,18 @@ contract IPRightsRegistry {
         return _ownerCerts[owner];
     }
 
+    // ─── إزالة شهادة من قائمة شهادات مالك معيّن (swap-and-pop) ────────────────
+    function _removeOwnerCert(address owner, uint256 certId) private {
+        uint256[] storage certs = _ownerCerts[owner];
+        for (uint256 i = 0; i < certs.length; i++) {
+            if (certs[i] == certId) {
+                certs[i] = certs[certs.length - 1];
+                certs.pop();
+                break;
+            }
+        }
+    }
+
     // ─── تحويل الشهادة (مثل NFT transfer) ────────────────────────────────────
     function transferCertificate(uint256 certId, address newOwner) external {
         require(certificates[certId].owner == msg.sender, "Not the owner");
@@ -106,6 +118,7 @@ contract IPRightsRegistry {
 
         address oldOwner = certificates[certId].owner;
         certificates[certId].owner = newOwner;
+        _removeOwnerCert(oldOwner, certId);
         _ownerCerts[newOwner].push(certId);
 
         emit CertificateTransferred(certId, oldOwner, newOwner);

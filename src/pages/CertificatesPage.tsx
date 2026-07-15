@@ -20,6 +20,9 @@ import { useLang } from '../context/LanguageContext'
 import { IP_TYPES, BLOCKCHAIN } from '../config/blockchain.config'
 import type { CertificateData } from '../lib/blockchain'
 import WalletConnect from '../components/WalletConnect'
+import CertHistoryModal from '../components/CertHistoryModal'
+import CertificatePrintable from '../components/CertificatePrintable'
+import { downloadCertificatePdf } from '../lib/certPdf'
 
 const EASE = 'easeOut' as const
 
@@ -51,6 +54,24 @@ function CopyHashBtn({ hash }: { hash: string }) {
 function CertCard({ cert, onTransfer }: { cert: CertificateData; onTransfer: () => void }) {
   const { t, lang } = useLang()
   const ipType = IP_TYPES[cert.ipType] ?? IP_TYPES[0]
+  const [showHistory, setShowHistory] = useState(false)
+  const [printCert, setPrintCert] = useState<CertificateData | null>(null)
+  const [downloading, setDownloading] = useState(false)
+  const printRef = useRef<HTMLDivElement>(null)
+
+  const handleDownload = async () => {
+    if (downloading) return
+    setDownloading(true)
+    setPrintCert(cert)
+    await new Promise(requestAnimationFrame)
+    await new Promise(requestAnimationFrame)
+    try {
+      if (printRef.current) await downloadCertificatePdf(printRef.current, `certificate-${cert.certId}`)
+    } finally {
+      setDownloading(false)
+    }
+  }
+
   return (
     <motion.div
       className="cert-card"
@@ -58,6 +79,7 @@ function CertCard({ cert, onTransfer }: { cert: CertificateData; onTransfer: () 
       animate={{ opacity: 1, y: 0 }}
       transition={{ ease: EASE }}
     >
+      <CertificatePrintable ref={printRef} cert={printCert} />
       <div className="cert-card-top">
         <span className="ip-badge" style={{ background: ipType.bg, color: ipType.color }}>
           {t(ipType.labelKey)}
@@ -117,7 +139,7 @@ function CertCard({ cert, onTransfer }: { cert: CertificateData; onTransfer: () 
 
       <div className="cert-card-actions">
         <a
-          href={`${BLOCKCHAIN.EXPLORER}/address/${cert.owner}`}
+          href={cert.txHash ? `${BLOCKCHAIN.EXPLORER}/tx/${cert.txHash}` : `${BLOCKCHAIN.EXPLORER}/address/${cert.owner}`}
           target="_blank"
           rel="noopener noreferrer"
           className="btn-cert-explorer"
@@ -127,7 +149,13 @@ function CertCard({ cert, onTransfer }: { cert: CertificateData; onTransfer: () 
             <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" />
           </svg>
         </a>
-        <InfoTip term="Etherscan" explanation="موقع مستقل يعرض جميع معاملات البلوكشين. اضغط لرؤية عنوان محفظتك وجميع الحقوق المسجلة عليها بشكل عام وشفاف." />
+        <InfoTip term="Etherscan" explanation="موقع مستقل يعرض معاملات البلوكشين. اضغط لرؤية معاملة تسجيل هذه الشهادة تحديداً وإثبات توثيقها بشكل علني وشفاف." />
+        <button className="btn-cert-explorer" onClick={() => setShowHistory(true)}>
+          {t('hist.btn')}
+        </button>
+        <button className="btn-cert-explorer" onClick={handleDownload} disabled={downloading}>
+          {downloading ? t('cert.download.loading') : t('cert.print.btn')}
+        </button>
         {cert.isValid && (
           <button className="btn-cert-transfer" onClick={onTransfer}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -138,6 +166,12 @@ function CertCard({ cert, onTransfer }: { cert: CertificateData; onTransfer: () 
           </button>
         )}
       </div>
+
+      <AnimatePresence>
+        {showHistory && (
+          <CertHistoryModal certId={cert.certId} onClose={() => setShowHistory(false)} />
+        )}
+      </AnimatePresence>
     </motion.div>
   )
 }
@@ -193,6 +227,7 @@ export default function CertificatesPage() {
           holderName:   r.holder_name,
           registeredAt: new Date(r.created_at),
           isValid:      true,
+          txHash:       r.tx_hash,
         })))
       }
     } catch (err) {

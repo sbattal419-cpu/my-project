@@ -15,7 +15,7 @@ pragma solidity ^0.8.20;
 
 contract IPRightsRegistry {
 
-    enum IPType { Copyright, Trademark, Patent, Consultation }
+    enum IPType { Copyright, Trademark, Patent }
 
     struct Certificate {
         uint256 id;
@@ -58,7 +58,7 @@ contract IPRightsRegistry {
         string  calldata holderName
     ) external returns (uint256 certId) {
         require(documentHash != bytes32(0),        "Hash cannot be empty");
-        require(ipType <= 3,                        "Invalid IP type");
+        require(ipType <= 2,                        "Invalid IP type");
         require(hashToCertId[documentHash] == 0,   "Already registered");
         require(bytes(title).length > 0,           "Title required");
 
@@ -106,12 +106,24 @@ contract IPRightsRegistry {
         return _ownerCerts[owner];
     }
 
+    function _removeOwnerCert(address owner, uint256 certId) private {
+        uint256[] storage certs = _ownerCerts[owner];
+        for (uint256 i = 0; i < certs.length; i++) {
+            if (certs[i] == certId) {
+                certs[i] = certs[certs.length - 1];
+                certs.pop();
+                break;
+            }
+        }
+    }
+
     function transferCertificate(uint256 certId, address newOwner) external {
         require(certificates[certId].owner == msg.sender, "Not the owner");
         require(newOwner != address(0), "Invalid address");
 
         address oldOwner = certificates[certId].owner;
         certificates[certId].owner = newOwner;
+        _removeOwnerCert(oldOwner, certId);
         _ownerCerts[newOwner].push(certId);
 
         emit CertificateTransferred(certId, oldOwner, newOwner);
@@ -134,7 +146,7 @@ async function loadSolcCompiler(): Promise<(input: string) => string> {
           const M = (window as any).Module
           const fn = M.cwrap('solidity_compile', 'string', ['string', 'number'])
           resolve(fn)
-        } catch (e) {
+        } catch {
           reject(new Error('فشل تهيئة المترجم'))
         }
       },

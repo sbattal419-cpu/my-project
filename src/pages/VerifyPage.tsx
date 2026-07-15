@@ -8,14 +8,18 @@
 //   البحث → ابحث عن handleSearch
 //   عرض النتيجة → ابحث عن CertResult
 // ════════════════════════════════════════════════════════════════
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Link } from 'react-router-dom'
 import { QRCodeSVG } from 'qrcode.react'
-import { fetchCertificate, verifyByHash, truncateAddress } from '../lib/blockchain'
+import { fetchCertificate, fetchRegistrationTxHash, verifyByHash, truncateAddress } from '../lib/blockchain'
+import { getCertTxHash } from '../lib/supabase-ipr'
 import { IP_TYPES, BLOCKCHAIN } from '../config/blockchain.config'
 import { useLang } from '../context/LanguageContext'
 import InfoTip from '../components/InfoTip'
+import CertHistoryModal from '../components/CertHistoryModal'
+import CertificatePrintable from '../components/CertificatePrintable'
+import { downloadCertificatePdf } from '../lib/certPdf'
 import type { CertificateData } from '../lib/blockchain'
 
 const EASE = 'easeOut' as const
@@ -49,8 +53,27 @@ function CertResult({ cert }: { cert: CertificateData }) {
   const { t, lang } = useLang()
   const ipType = IP_TYPES[cert.ipType] ?? IP_TYPES[0]
   const verifyUrl = `${window.location.origin}/verify?id=${cert.certId}`
+  const [showHistory, setShowHistory] = useState(false)
+  const [printCert, setPrintCert] = useState<CertificateData | null>(null)
+  const [downloading, setDownloading] = useState(false)
+  const printRef = useRef<HTMLDivElement>(null)
+
+  const handleDownload = async () => {
+    if (downloading) return
+    setDownloading(true)
+    setPrintCert(cert)
+    await new Promise(requestAnimationFrame)
+    await new Promise(requestAnimationFrame)
+    try {
+      if (printRef.current) await downloadCertificatePdf(printRef.current, `certificate-${cert.certId}`)
+    } finally {
+      setDownloading(false)
+    }
+  }
+
   return (
     <div className="bc-verify-result">
+      <CertificatePrintable ref={printRef} cert={printCert} />
       <div className="bc-verify-result-header">
         <div className="bc-verify-result-title-row">
           <span className="ip-badge" style={{ background: ipType.bg, color: ipType.color }}>
@@ -122,7 +145,7 @@ function CertResult({ cert }: { cert: CertificateData }) {
 
       <div className="bc-verify-actions bc-verify-actions-row">
         <a
-          href={`${BLOCKCHAIN.EXPLORER}/address/${cert.owner}`}
+          href={cert.txHash ? `${BLOCKCHAIN.EXPLORER}/tx/${cert.txHash}` : `${BLOCKCHAIN.EXPLORER}/address/${cert.owner}`}
           target="_blank"
           rel="noopener noreferrer"
           className="btn-bc-outline btn-bc-sm"
@@ -137,7 +160,19 @@ function CertResult({ cert }: { cert: CertificateData }) {
           explanation="موقع مستقل يعرض جميع معاملات شبكة Ethereum علناً. يمكنك التحقق من شهادتك بشكل مستقل تماماً دون الحاجة للمنصة."
           size={16}
         />
+        <button className="btn-bc-outline btn-bc-sm" onClick={() => setShowHistory(true)}>
+          {t('hist.btn')}
+        </button>
+        <button className="btn-bc-outline btn-bc-sm" onClick={handleDownload} disabled={downloading}>
+          {downloading ? t('cert.download.loading') : t('cert.print.btn')}
+        </button>
       </div>
+
+      <AnimatePresence>
+        {showHistory && (
+          <CertHistoryModal certId={cert.certId} onClose={() => setShowHistory(false)} />
+        )}
+      </AnimatePresence>
     </div>
   )
 }
@@ -174,7 +209,8 @@ export default function VerifyPage() {
         certId = id
       }
       const data = await fetchCertificate(certId)
-      setCert(data)
+      const txHash = (await getCertTxHash(certId)) ?? (await fetchRegistrationTxHash(certId))
+      setCert(txHash ? { ...data, txHash } : data)
     } catch (err) {
       const msg = (err as Error).message ?? ''
       if (msg === 'no_hash') {
