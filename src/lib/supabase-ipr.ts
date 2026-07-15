@@ -7,7 +7,7 @@
 import { supabase } from './supabase'
 import { supabaseAdmin } from './supabase-admin'
 import type { RegisterResult } from './blockchain'
-import { hammingDistance, PHASH_THRESHOLD } from './blockchain'
+import { hammingDistance, PHASH_THRESHOLD, transferCertOnChain } from './blockchain'
 
 // ════════════════════════════════════════════════════════════════
 // SECTION: TYPES — أنواع البيانات
@@ -183,6 +183,16 @@ export async function getUserCerts(userId: string): Promise<RightsRow[]> {
     .order('created_at', { ascending: false })
   if (error) throw error
   return (data ?? []) as RightsRow[]
+}
+
+// ── transferCertificateAndSync ──────────────────────────────────
+// نقل ملكية شهادة: يوقّع معاملة على البلوكشين ثم يزامن wallet_address بـ Supabase
+// نقطة دخول موحّدة — تُستخدم من CertificatesPage وSettingsModal معاً
+// (قبلها كان كل مكان يكرّر نفس الخطوتين بشكل منفصل، وواحد منهم كان ينسى المزامنة)
+export async function transferCertificateAndSync(certId: string, toAddress: string): Promise<string> {
+  const txHash = await transferCertOnChain(certId, toAddress)
+  await supabase.from('Rights').update({ wallet_address: toAddress }).eq('cert_id', certId)
+  return txHash
 }
 
 // ── getCertTxHash ──────────────────────────────────────────────

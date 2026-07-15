@@ -13,9 +13,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '../context/AuthContext'
 import { useLang } from '../context/LanguageContext'
 import { updateProfile, updatePassword, uploadAvatar, updateEmail, updatePhone } from '../lib/auth'
-import { getUserCerts, type RightsRow } from '../lib/supabase-ipr'
-import { transferCertOnChain } from '../lib/blockchain'
-import { supabase } from '../lib/supabase'
+import { getUserCerts, transferCertificateAndSync, type RightsRow } from '../lib/supabase-ipr'
 
 export type SettingsSection = 'profile' | 'password' | 'language' | 'transfer'
 
@@ -316,14 +314,13 @@ function TransferSection() {
   }, [user])
 
   // ── handleTransfer — نقل ملكية الشهادة ──────────────────────────────────────
-  // الخطوة 1: transferCertOnChain → إرسال معاملة للبلوكشين (يحتاج توقيع MetaMask)
-  // الخطوة 2: تحديث wallet_address في جدول Rights بـ Supabase لمزامنة قاعدة البيانات
+  // transferCertificateAndSync (src/lib/supabase-ipr.ts): بلوكشين + مزامنة Supabase معاً
+  // نفس نقطة الدخول المستخدمة من CertificatesPage — منطق موحّد بمكان واحد
   const handleTransfer = async () => {
     if (!newWallet.trim() || !selectedId) return                                    // تحقق أن الحقول غير فارغة
     setErr(''); setTransferring(true)
     try {
-      await transferCertOnChain(selectedId, newWallet.trim())                       // ينفّذ transferCertificate على العقد الذكي
-      await supabase.from('Rights').update({ wallet_address: newWallet.trim() }).eq('cert_id', selectedId) // زامن قاعدة البيانات
+      await transferCertificateAndSync(selectedId, newWallet.trim())
       setDone(true); setNewWallet('')
       setTimeout(() => setDone(false), 3000)                                        // أخفِ رسالة النجاح بعد 3 ثوانٍ
     } catch (e) {

@@ -13,8 +13,8 @@ import InfoTip from '../components/InfoTip'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Link } from 'react-router-dom'
 import { useWallet } from '../hooks/useWallet'
-import { fetchOwnerCertificates, transferCertOnChain } from '../lib/blockchain'
-import { getUserCerts, type RightsRow } from '../lib/supabase-ipr'
+import { fetchOwnerCertificates } from '../lib/blockchain'
+import { getUserCerts, transferCertificateAndSync, type RightsRow } from '../lib/supabase-ipr'
 import { useAuth } from '../context/AuthContext'
 import { useLang } from '../context/LanguageContext'
 import { IP_TYPES, BLOCKCHAIN } from '../config/blockchain.config'
@@ -244,14 +244,14 @@ export default function CertificatesPage() {
   }, [userId, isReady, wallet.address]) // loadCerts محذوف من الـ deps لأنه مشتق منهم
 
   // handleTransfer — نقل ملكية شهادة على البلوكشين
-  // يستدعي transferCertOnChain ثم يُعيد تحميل الشهادات
+  // يستدعي transferCertificateAndSync (بلوكشين + مزامنة Supabase معاً) ثم يُعيد تحميل الشهادات
   const handleTransfer = async () => {
     if (!transferCertId || !toAddress.trim()) return
     setTransferring(true)
     setTransferError(null)
     setTransferSuccess(false)
     try {
-      await transferCertOnChain(transferCertId, toAddress.trim())
+      await transferCertificateAndSync(transferCertId, toAddress.trim())
       setTransferSuccess(true)
       setTimeout(() => {
         setTransferCertId(null)
