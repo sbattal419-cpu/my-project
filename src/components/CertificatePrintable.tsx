@@ -9,12 +9,20 @@ import { IP_TYPES } from '../config/blockchain.config'
 import { useLang } from '../context/LanguageContext'
 import type { CertificateData } from '../lib/blockchain'
 
+// النطاق العام للمنصة — يُستخدم في رابط QR على الشهادة المطبوعة
+// للتعديل عند تغيير الدومين: غيّر هذا السطر فقط
+const PUBLIC_BASE_URL = 'https://sar-ipr.netlify.app'
+
 const CertificatePrintable = forwardRef<HTMLDivElement, { cert: CertificateData | null }>(({ cert }, ref) => {
   const { t, lang } = useLang()
   if (!cert) return null
 
   const ipType = IP_TYPES[cert.ipType] ?? IP_TYPES[0]
- const verifyUrl = "http://localhost:5173/certificates";
+
+  // رابط QR: يفتح السجل العام ويعرض تفاصيل هذه الشهادة تحديداً
+  // النطاق ثابت (لا window.location.origin) لأن الشهادة تُطبع وتُقرأ من أجهزة أخرى
+  // — لو كان localhost لما عمل عند أي شخص غير المطوّر
+  const verifyUrl = `${PUBLIC_BASE_URL}/registry?cert=${cert.certId}`
 
   return (
     <div className="cert-printable" ref={ref}>
