@@ -160,7 +160,8 @@ export default function RegisterRightPage() {
     try {
       await submitKYC(kycNationalId, kycFile) // → src/lib/auth.ts → submitKYC
       setKycStatusVal('pending')              // تحويل الواجهة لشاشة "قيد المراجعة"
-    } catch {
+    } catch(err) {
+      console.error(err)
       setKycError(lang === 'ar' ? 'فشل الإرسال، يرجى المحاولة مرة أخرى' : 'Submission failed, please try again')
     } finally {
       setKycLoading(false)

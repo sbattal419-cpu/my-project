@@ -14,7 +14,7 @@ const CertificatePrintable = forwardRef<HTMLDivElement, { cert: CertificateData 
   if (!cert) return null
 
   const ipType = IP_TYPES[cert.ipType] ?? IP_TYPES[0]
-  const verifyUrl = `${window.location.origin}/verify?id=${cert.certId}`
+ const verifyUrl = "http://localhost:5173/certificates";
 
   return (
     <div className="cert-printable" ref={ref}>
