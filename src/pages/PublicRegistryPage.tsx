@@ -2,26 +2,40 @@
 // FILE: src/pages/PublicRegistryPage.tsx
 // السجل العام — يعرض كل الحقوق المسجّلة (بدون تسجيل دخول)
 // للتعديل:
-//   بطاقة الحق  → ابحث عن RightCard
-//   فلتر النوع  → ابحث عن typeFilter
-//   البحث بالنص → ابحث عن query
+//   بطاقة الحق    → ابحث عن RightCard
+//   فلتر النوع    → ابحث عن typeFilter
+//   البحث بالنص   → ابحث عن query
+//   نافذة التفاصيل → ابحث عن CertDetailModal
 // البيانات: getAllRights() من Supabase (آخر 100 حق)
+// رابط QR: /registry?cert=123 يفتح الصفحة ويعرض تفاصيل الشهادة تلقائياً
+//          (إن لم تكن ضمن الـ100 الأحدث تُجلب مباشرة بـ getRightByCertId)
 // ════════════════════════════════════════════════════════════════
 import { useState, useEffect, useMemo } from 'react'
-import { motion } from 'framer-motion'
-import { Link } from 'react-router-dom'
+import { motion, AnimatePresence } from 'framer-motion'
+import { Link, useSearchParams } from 'react-router-dom'
 import { useLang } from '../context/LanguageContext'
 import { IP_TYPES } from '../config/blockchain.config'
-import { getAllRights, type RightsRow } from '../lib/supabase-ipr'
+import { getAllRights, getRightByCertId, type RightsRow } from '../lib/supabase-ipr'
 
 const EASE = 'easeOut' as const
 
 // ── Right card ────────────────────────────────────────────────────────────────
-function RightCard({ row }: { row: RightsRow }) {
+// onOpen: يفتح نافذة التفاصيل (النقر على البطاقة أو مسح رمز QR كلاهما يؤدي لنفس النافذة)
+function RightCard({ row, onOpen }: { row: RightsRow; onOpen: (row: RightsRow) => void }) {
   const { t, lang } = useLang()
   const ipType = IP_TYPES[row.ip_type] ?? IP_TYPES[0]
   return (
-    <motion.div className="pub-right-card" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ ease: EASE }}>
+    <motion.div
+      className="pub-right-card"
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ ease: EASE }}
+      onClick={() => onOpen(row)}
+      role="button"
+      tabIndex={0}
+      onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen(row) } }}
+      style={{ cursor: 'pointer' }}
+    >
       <div className="pub-card-top">
         <span className="ip-badge" style={{ background: ipType.bg, color: ipType.color }}>
           {t(ipType.labelKey)}
@@ -43,6 +57,138 @@ function RightCard({ row }: { row: RightsRow }) {
   )
 }
 
+// ── CertDetailModal ───────────────────────────────────────────────────────────
+// نافذة تفاصيل شهادة واحدة — تُفتح بالنقر على بطاقة أو عبر رابط QR (?cert=123)
+// الأنماط inline بالكامل حتى تعمل دون أي تعديل على ملفات CSS
+function CertDetailModal({ row, loading, notFound, onClose }: {
+  row: RightsRow | null
+  loading: boolean
+  notFound: boolean
+  onClose: () => void
+}) {
+  const { t, lang } = useLang()
+
+  // إغلاق بمفتاح Escape
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [onClose])
+
+  const ipType = row ? (IP_TYPES[row.ip_type] ?? IP_TYPES[0]) : null
+
+  const overlay: React.CSSProperties = {
+    position: 'fixed', inset: 0, background: 'rgba(2,6,23,0.75)', backdropFilter: 'blur(4px)',
+    display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, zIndex: 1000,
+  }
+  const panel: React.CSSProperties = {
+    background: '#0f172a', border: '1px solid rgba(59,130,246,0.35)', borderRadius: 16,
+    padding: 24, width: '100%', maxWidth: 540, maxHeight: '85vh', overflowY: 'auto',
+    boxShadow: '0 20px 60px rgba(0,0,0,0.5)', position: 'relative',
+  }
+  const rowStyle: React.CSSProperties = {
+    display: 'flex', justifyContent: 'space-between', gap: 12,
+    padding: '10px 0', borderBottom: '1px solid rgba(148,163,184,0.14)', fontSize: 14,
+  }
+  const labelStyle: React.CSSProperties = { color: '#94a3b8', whiteSpace: 'nowrap' }
+  const valueStyle: React.CSSProperties = { color: '#e2e8f0', fontWeight: 600, wordBreak: 'break-all', textAlign: 'end' }
+
+  return (
+    <div style={overlay} onClick={onClose}>
+      <motion.div
+        style={panel}
+        onClick={e => e.stopPropagation()}
+        initial={{ opacity: 0, scale: 0.96, y: 10 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        transition={{ ease: EASE, duration: 0.18 }}
+      >
+        <button
+          onClick={onClose}
+          aria-label="close"
+          style={{
+            position: 'absolute', top: 12, insetInlineEnd: 12, background: 'transparent',
+            border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 22, lineHeight: 1, padding: 4,
+          }}
+        >×</button>
+
+        {loading ? (
+          <div style={{ display: 'flex', justifyContent: 'center', padding: '48px 0' }}>
+            <div className="bc-spinner" />
+          </div>
+        ) : notFound || !row ? (
+          <div style={{ textAlign: 'center', padding: '32px 8px' }}>
+            <h2 style={{ color: '#e2e8f0', margin: '0 0 8px' }}>{t('pub.empty.title')}</h2>
+            <p style={{ color: '#94a3b8', margin: 0, fontSize: 14 }}>{t('pub.empty.desc')}</p>
+          </div>
+        ) : (
+          <>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+              <span className="ip-badge" style={{ background: ipType!.bg, color: ipType!.color }}>
+                {t(ipType!.labelKey)}
+              </span>
+              <span style={{ color: '#64748b', fontSize: 13, fontWeight: 700 }}>#{row.cert_id}</span>
+            </div>
+
+            <h2 style={{ color: '#f1f5f9', margin: '0 0 10px', fontSize: 22, lineHeight: 1.35 }}>{row.title}</h2>
+            {row.description && (
+              <p style={{ color: '#94a3b8', margin: '0 0 16px', fontSize: 14, lineHeight: 1.7 }}>{row.description}</p>
+            )}
+
+            <div style={rowStyle}>
+              <span style={labelStyle}>{t('pub.holder')}</span>
+              <span style={valueStyle}>{row.holder_name}</span>
+            </div>
+            <div style={rowStyle}>
+              <span style={labelStyle}>{t('vfy.f.cert.id')}</span>
+              <span style={valueStyle}>#{row.cert_id}</span>
+            </div>
+            <div style={rowStyle}>
+              <span style={labelStyle}>{t('vfy.f.reg.date')}</span>
+              <span style={valueStyle}>
+                {new Date(row.created_at).toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+              </span>
+            </div>
+            <div style={rowStyle}>
+              <span style={labelStyle}>{t('vfy.f.doc.hash')}</span>
+              <span style={{ ...valueStyle, fontFamily: 'monospace', fontSize: 12 }}>{row.document_hash}</span>
+            </div>
+            {row.wallet_address && (
+              <div style={rowStyle}>
+                <span style={labelStyle}>Wallet</span>
+                <span style={{ ...valueStyle, fontFamily: 'monospace', fontSize: 12 }}>{row.wallet_address}</span>
+              </div>
+            )}
+            {row.tx_hash && (
+              <div style={{ ...rowStyle, borderBottom: 'none' }}>
+                <span style={labelStyle}>Tx</span>
+                <a
+                  href={`https://sepolia.etherscan.io/tx/${row.tx_hash}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ ...valueStyle, color: '#60a5fa', fontFamily: 'monospace', fontSize: 12 }}
+                >
+                  {row.tx_hash.slice(0, 14)}…{row.tx_hash.slice(-8)}
+                </a>
+              </div>
+            )}
+
+            <Link
+              to="/verify"
+              style={{
+                display: 'block', textAlign: 'center', marginTop: 18, padding: '11px 16px',
+                background: 'rgba(37,99,235,0.18)', border: '1px solid rgba(59,130,246,0.45)',
+                borderRadius: 10, color: '#93c5fd', textDecoration: 'none', fontWeight: 700, fontSize: 14,
+              }}
+            >
+              {lang === 'ar' ? 'التحقق من الشهادة' : 'Verify certificate'}
+            </Link>
+          </>
+        )}
+      </motion.div>
+    </div>
+  )
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function PublicRegistryPage() {
   const { t } = useLang()
@@ -51,12 +197,42 @@ export default function PublicRegistryPage() {
   const [query, setQuery] = useState('')
   const [typeFilter, setTypeFilter] = useState<number | null>(null)
 
+  // ── فتح شهادة محددة عبر الرابط: /registry?cert=123 (رمز QR على الشهادة المطبوعة)
+  const [searchParams, setSearchParams] = useSearchParams()
+  const certParam = searchParams.get('cert')
+  const [selected, setSelected] = useState<RightsRow | null>(null)
+  const [certLoading, setCertLoading] = useState(false)
+  const [notFound, setNotFound] = useState(false)
+
   useEffect(() => {
     getAllRights()
       .then(setRights)
       .catch(() => {})
       .finally(() => setLoading(false))
   }, [])
+
+  // يبحث عن الشهادة داخل القائمة المحمّلة أولاً (بدون طلب شبكة)،
+  // وإن لم توجد (أقدم من آخر 100) يجلبها مباشرة من Supabase
+  useEffect(() => {
+    if (!certParam) { setSelected(null); setNotFound(false); return }
+
+    const local = rights.find(r => String(r.cert_id) === certParam)
+    if (local) { setSelected(local); setNotFound(false); return }
+    if (loading) return // انتظر تحميل القائمة قبل طلب إضافي
+
+    let cancelled = false
+    setCertLoading(true)
+    setNotFound(false)
+    getRightByCertId(certParam)
+      .then(row => { if (!cancelled) { setSelected(row); setNotFound(!row) } })
+      .catch(() => { if (!cancelled) { setSelected(null); setNotFound(true) } })
+      .finally(() => { if (!cancelled) setCertLoading(false) })
+    return () => { cancelled = true }
+  }, [certParam, rights, loading])
+
+  // فتح/إغلاق النافذة عبر الرابط حتى يكون قابلاً للمشاركة والرجوع بزر المتصفح
+  const openCert = (row: RightsRow) => setSearchParams({ cert: String(row.cert_id) })
+  const closeCert = () => setSearchParams({})
 
   // filtered — يُحسَّب تلقائياً عند تغيير query أو typeFilter
   // يُصفّي بالنوع أولاً ثم بنص البحث (العنوان أو صاحب الحق)
@@ -151,11 +327,24 @@ export default function PublicRegistryPage() {
           </div>
         ) : (
           <div className="pub-rights-grid">
-            {filtered.map(row => <RightCard key={row.id} row={row} />)}
+            {filtered.map(row => <RightCard key={row.id} row={row} onOpen={openCert} />)}
           </div>
         )}
 
       </main>
+
+      {/* نافذة تفاصيل الشهادة — تظهر عند وجود ?cert= في الرابط */}
+      <AnimatePresence>
+        {certParam && (
+          <CertDetailModal
+            key="cert-modal"
+            row={selected}
+            loading={certLoading}
+            notFound={notFound}
+            onClose={closeCert}
+          />
+        )}
+      </AnimatePresence>
     </div>
   )
 }
