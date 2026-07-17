@@ -186,12 +186,37 @@ export async function getUserCerts(userId: string): Promise<RightsRow[]> {
 }
 
 // ── transferCertificateAndSync ──────────────────────────────────
-// نقل ملكية شهادة: يوقّع معاملة على البلوكشين ثم يزامن wallet_address بـ Supabase
+// نقل ملكية شهادة: يوقّع معاملة على البلوكشين ثم يزامن Supabase كاملاً
 // نقطة دخول موحّدة — تُستخدم من CertificatesPage وSettingsModal معاً
-// (قبلها كان كل مكان يكرّر نفس الخطوتين بشكل منفصل، وواحد منهم كان ينسى المزامنة)
+// التعديل: صار ينقل auth_user_id + holder_name + holder_email للمالك الجديد
+// (سابقاً كان يحدّث wallet_address فقط → الشهادة لا تظهر في "شهاداتي"
+//  عند المالك الجديد لأن getUserCerts تفلتر على auth_user_id)
 export async function transferCertificateAndSync(certId: string, toAddress: string): Promise<string> {
   const txHash = await transferCertOnChain(certId, toAddress)
-  await supabase.from('Rights').update({ wallet_address: toAddress }).eq('cert_id', certId)
+  const db = supabaseAdmin ?? supabase
+  const addr = toAddress.toLowerCase()
+
+  // البحث عن حساب المالك الجديد عبر عنوان محفظته في profiles
+  // (يتطلب عمود wallet_address في جدول profiles)
+  const { data: newOwner } = await db
+    .from('profiles')
+    .select('auth_user_id, full_name, email')
+    .ilike('wallet_address', addr) // مطابقة غير حساسة لحالة الأحرف
+    .maybeSingle()
+
+  const patch: Record<string, unknown> = { wallet_address: toAddress }
+  if (newOwner?.auth_user_id) {
+    // المستلم مستخدم مسجّل بالمنصة → انقل الصف كاملاً لحسابه
+    patch.auth_user_id = newOwner.auth_user_id
+    if (newOwner.full_name) patch.holder_name = newOwner.full_name
+    patch.holder_email = newOwner.email ?? null
+  }
+  // إذا المستلم غير مسجّل: يتحدث wallet_address فقط،
+  // ويرى شهادته فور توصيل محفظته (وضع Blockchain في CertificatesPage)
+
+  const { error } = await db.from('Rights').update(patch).eq('cert_id', certId)
+  if (error) throw error // سابقاً كان يفشل بصمت بدون أي فحص
+
   return txHash
 }
 
@@ -222,7 +247,9 @@ export async function getAllRights(): Promise<RightsRow[]> {
 }
 
 // ── saveWalletAddress ──────────────────────────────────────────
-// يحفظ عنوان محفظة Ethereum في Rights وفي user_metadata
+// يحفظ عنوان محفظة Ethereum في Rights وprofiles وuser_metadata
+// التعديل: صار يحفظ العنوان في profiles.wallet_address أيضاً —
+// ضروري لنقل الملكية: منه نعرف auth_user_id للمستلم من عنوان محفظته
 // يُستخدم في: WalletConnect عند ربط محفظة جديدة
 export async function saveWalletAddress(authUserId: string, walletAddress: string): Promise<void> {
   const { error } = await supabase
@@ -230,6 +257,14 @@ export async function saveWalletAddress(authUserId: string, walletAddress: strin
     .update({ wallet_address: walletAddress })
     .eq('auth_user_id', authUserId)
     .eq('wallet_address', '') // يحدّث فقط الصفوف التي ليس لها عنوان محفظة
+
+  // جديد: ربط المحفظة بالبروفايل (بأحرف صغيرة لتوحيد المقارنة)
+  const { error: profileErr } = await supabase
+    .from('profiles')
+    .update({ wallet_address: walletAddress.toLowerCase() })
+    .eq('auth_user_id', authUserId)
+  if (profileErr) console.warn('profile wallet save:', profileErr.message)
+
   await supabase.auth.updateUser({ data: { wallet_address: walletAddress } })
   if (error) console.warn('wallet save:', error.message)
 }

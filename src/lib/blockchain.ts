@@ -345,6 +345,9 @@ export async function verifyByHash(hash: string): Promise<string> {
 // ════════════════════════════════════════════════════════════════
 // ── fetchOwnerCertificates — جلب كل شهادات عنوان محفظة ─────────────────────
 // getOwnerCertificates يُرجع مصفوفة certIds → نجلب كل شهادة بالتوازي
+// التعديل: العقد لا يحذف certId من مصفوفة المالك القديم عند نقل الملكية،
+// فيُرجع أرقام شهادات لم تعد ملكه → نفلتر بمقارنة cert.owner (المالك الحالي
+// الحقيقي من العقد) مع العنوان المطلوب، حتى تختفي الشهادة المنقولة عنده
 export async function fetchOwnerCertificates(address: string): Promise<CertificateData[]> {
   const contract = await getContract()
   const ids: bigint[] = await contract.getOwnerCertificates(address)               // اجلب كل IDs الشهادات لهذا العنوان
@@ -360,7 +363,11 @@ export async function fetchOwnerCertificates(address: string): Promise<Certifica
       return { ...cert, txHash: txHash ?? undefined }
     })
   )
-  return certs.reverse()                                                            // اعكس الترتيب لعرض الأحدث أولاً
+
+  // احتفظ فقط بالشهادات التي مالكها الحالي على العقد هو هذا العنوان فعلاً
+  const owned = certs.filter(c => c.owner.toLowerCase() === address.toLowerCase())
+
+  return owned.reverse()                                                            // اعكس الترتيب لعرض الأحدث أولاً
 }
 
 // ── fetchRegistrationTxHash — هاش معاملة تسجيل شهادة عبر حدث IPRegistered ────
