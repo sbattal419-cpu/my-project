@@ -246,21 +246,6 @@ export async function getAllRights(): Promise<RightsRow[]> {
   return (data ?? []) as RightsRow[]
 }
 
-// ── getRightByCertId ───────────────────────────────────────────
-// جلب حق واحد برقم شهادته — يُستخدم في السجل العام عند فتح رابط QR
-// (/registry?cert=123) لأن getAllRights محدودة بآخر 100 حق فقط،
-// فالشهادات الأقدم لن توجد في القائمة عند مسح رمز QR
-export async function getRightByCertId(certId: string): Promise<RightsRow | null> {
-  const db = supabaseAdmin ?? supabase
-  const { data, error } = await db
-    .from('Rights')
-    .select('*')
-    .eq('cert_id', certId)
-    .maybeSingle() // لا يرمي خطأ إذا لم يوجد صف
-  if (error) throw error
-  return (data as RightsRow) ?? null
-}
-
 // ── saveWalletAddress ──────────────────────────────────────────
 // يحفظ عنوان محفظة Ethereum في Rights وprofiles وuser_metadata
 // التعديل: صار يحفظ العنوان في profiles.wallet_address أيضاً —
