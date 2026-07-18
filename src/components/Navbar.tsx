@@ -13,6 +13,7 @@ import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useLang } from '../context/LanguageContext'
 import { signOut } from '../lib/auth'
+import { supabase } from '../lib/supabase'
 import { getUserNotifications, markNotificationsRead, type Notification } from '../lib/supabase-ipr'
 import SettingsModal, { type SettingsSection } from './SettingsModal'
 import AccountSettingsModal from './AccountSettingsModal'
@@ -64,6 +65,7 @@ export default function Navbar() {
   const [notifs, setNotifs]                 = useState<Notification[]>([])
   const [settingsSection, setSettingsSection] = useState<SettingsSection | null>(null)
   const [accountOpen, setAccountOpen] = useState(false)
+  const [isAdmin, setIsAdmin] = useState(false)
 
   const profileRef = useRef<HTMLDivElement>(null)
   const notifRef   = useRef<HTMLDivElement>(null)
@@ -92,6 +94,13 @@ export default function Navbar() {
   useEffect(() => {
     if (!user) return
     getUserNotifications(user.id).then(setNotifs).catch(() => {})
+  }, [user])
+
+  // isAdmin — يفحص profiles.role لإظهار رابط لوحة التحكم فقط للأدمن
+  useEffect(() => {
+    if (!user) { setIsAdmin(false); return }
+    supabase.from('profiles').select('role').eq('auth_user_id', user.id).single()
+      .then(({ data }) => setIsAdmin(data?.role === 'admin'), () => setIsAdmin(false))
   }, [user])
 
   // openNotifs — يفتح/يغلق قائمة الإشعارات
@@ -273,6 +282,13 @@ export default function Navbar() {
                           {t('set.transfer')}
                         </button>
 
+                        {isAdmin && (
+                          <button className="profile-dd-item" onClick={() => { setProfileOpen(false); navigate('/admin') }}>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+                            {lang === 'ar' ? 'لوحة تحكم الأدمن' : 'Admin Dashboard'}
+                          </button>
+                        )}
+
                         <div className="profile-dd-divider" />
 
                         <button className="profile-dd-item profile-dd-logout" onClick={handleLogout}>
@@ -337,6 +353,11 @@ export default function Navbar() {
               <div className="mobile-profile-section">
                 {avatarUrl && <img src={avatarUrl} alt="" className="mobile-profile-avatar" />}
                 <span className="mobile-profile-email">{user.email}</span>
+                {isAdmin && (
+                  <button className="btn-login mobile-login-btn" onClick={() => { navigate('/admin'); setOpen(false) }}>
+                    {lang === 'ar' ? 'لوحة تحكم الأدمن' : 'Admin Dashboard'}
+                  </button>
+                )}
                 <button className="btn-login mobile-login-btn" onClick={() => { setAccountOpen(true); setOpen(false) }}>
                   {t('set.profile')}
                 </button>

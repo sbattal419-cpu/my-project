@@ -152,11 +152,13 @@ export default function RegisterPage() {
             </p>
 
             <div className="otp-boxes-wrap" onClick={() => otpHiddenRef.current?.focus()}>
-              {Array.from({ length: 8 }, (_, i) => (
-                <div key={i} className={`otp-box${otp[i] ? ' otp-box-filled' : ''}${otp.length === i ? ' otp-box-active' : ''}`}>
-                  {otp[i] || ''}
-                </div>
-              ))}
+              <div className="otp-boxes">
+                {Array.from({ length: 8 }, (_, i) => (
+                  <div key={i} className={`otp-box${otp[i] ? ' otp-box-filled' : ''}${otp.length === i ? ' otp-box-active' : ''}`}>
+                    {otp[i] || ''}
+                  </div>
+                ))}
+              </div>
               <input
                 ref={otpHiddenRef}
                 type="text"

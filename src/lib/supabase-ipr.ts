@@ -232,6 +232,20 @@ export async function getCertTxHash(certId: string): Promise<string | null> {
   return (data as { tx_hash: string }).tx_hash
 }
 
+// ── getRightByCertId ─────────────────────────────────────────────
+// يجلب حقاً واحداً مباشرة برقم الشهادة (للشهادات الأقدم من آخر 100 حق)
+// يُستخدم في: PublicRegistryPage → رابط QR لشهادة غير موجودة في القائمة المحمّلة
+export async function getRightByCertId(certId: string): Promise<RightsRow | null> {
+  const db = supabaseAdmin ?? supabase
+  const { data, error } = await db
+    .from('Rights')
+    .select('*')
+    .eq('cert_id', certId)
+    .maybeSingle()
+  if (error || !data) return null
+  return data as RightsRow
+}
+
 // ── getAllRights ───────────────────────────────────────────────
 // جلب كل الحقوق المسجّلة (حد أقصى 100) للأدمن أو السجل العام
 // يُستخدم في: AdminDashboard → تبويب الحقوق

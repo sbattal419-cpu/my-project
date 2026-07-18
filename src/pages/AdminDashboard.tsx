@@ -76,6 +76,8 @@ export default function AdminDashboard() {
   const [rights,      setRights]      = useState<RightRow[]>([])
   const [users,       setUsers]       = useState<UserRow[]>([])
   const [files,       setFiles]       = useState<FileRow[]>([])
+  // rightsLookup — كل الحقوق (بدون limit) لربط الملفات بصاحبها في تبويب "الملفات المرفوعة"
+  const [rightsLookup, setRightsLookup] = useState<{ ip_id: number | null; title: string; holder_name: string }[]>([])
   const [activeTab,   setActiveTab]   = useState<'rights' | 'users' | 'kyc' | 'contract' | 'files'>('rights')
   const [dataLoading, setDataLoading] = useState(true)
 
@@ -156,18 +158,27 @@ export default function AdminDashboard() {
       db.from('Rights').select('*', { count: 'exact', head: true }),
       db.from('profiles').select('*', { count: 'exact', head: true }),
       db.from('Ip_files').select('*', { count: 'exact', head: true }),
+      // select('*') بدل تعداد الأعمدة — عمود غير موجود في القائمة يُسقط الاستعلام بالكامل بصمت
       db.from('Rights')
-        .select('id,auth_user_id,ip_id,title,holder_name,ip_type,wallet_address,cert_id,tx_hash,created_at,status,review_note')
+        .select('*')
         .order('created_at', { ascending: false }).limit(50),
       db.from('profiles').select('id,auth_user_id,full_name,email,role,created_at,national_id,id_document_url,kyc_status,kyc_note').order('created_at', { ascending: false }),
       db.from('Ip_files')
         .select('id,ip_id,file_name,file_type,uploaded_at')
         .order('uploaded_at', { ascending: false }).limit(100),
-    ]).then(([r, u, f, rightsData, usersData, filesData]) => {
+      // قائمة كاملة بدون limit — تُستخدم فقط لربط الملفات بصاحب الحق في تبويب "الملفات المرفوعة"
+      // (قائمة rights أعلاه محدودة بآخر 50 حق، فالملفات الأقدم من ذلك لم تكن تجد صاحب الحق)
+      db.from('Rights').select('ip_id,title,holder_name'),
+    ]).then(([r, u, f, rightsData, usersData, filesData, rightsLookupData]) => {
+      // نطبع أي خطأ بدل إسقاطه بصمت (كان سبب اختفاء تبويب "الحقوق المسجلة" سابقاً)
+      for (const res of [r, u, f, rightsData, usersData, filesData, rightsLookupData]) {
+        if (res.error) console.error('AdminDashboard loadData error:', res.error)
+      }
       setStats({ rights: r.count ?? 0, users: u.count ?? 0, files: f.count ?? 0 })
       setRights((rightsData.data ?? []) as RightRow[])
       setUsers((usersData.data ?? []) as UserRow[])
       setFiles((filesData.data ?? []) as FileRow[])
+      setRightsLookup((rightsLookupData.data ?? []) as { ip_id: number | null; title: string; holder_name: string }[])
       setDataLoading(false)
     })
   }
@@ -712,7 +723,7 @@ export default function AdminDashboard() {
                 {files.length === 0 ? (
                   <tr><td colSpan={6} className="adm-empty-cell">لا توجد ملفات مرفوعة</td></tr>
                 ) : files.map((f, i) => {
-                  const right = rights.find(r => r.ip_id === f.ip_id) // ربط الملف بالحق عبر ip_id المشترك
+                  const right = rightsLookup.find(r => r.ip_id === f.ip_id) // ربط الملف بالحق عبر ip_id المشترك (قائمة كاملة بدون limit)
                   return (
                     <tr key={f.id}>
                       <td className="adm-td-num">{i + 1}</td>
