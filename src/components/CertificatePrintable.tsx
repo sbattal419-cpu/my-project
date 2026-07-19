@@ -11,7 +11,7 @@ import type { CertificateData } from '../lib/blockchain'
 
 // النطاق العام للمنصة — يُستخدم في رابط QR على الشهادة المطبوعة
 // للتعديل عند تغيير الدومين: غيّر هذا السطر فقط
-const PUBLIC_BASE_URL = 'https://sar-ipr.netlify.app'
+const PUBLIC_BASE_URL = 'https://joud-sara-certificates.netlify.app'
 
 const CertificatePrintable = forwardRef<HTMLDivElement, { cert: CertificateData | null }>(({ cert }, ref) => {
   const { t, lang } = useLang()

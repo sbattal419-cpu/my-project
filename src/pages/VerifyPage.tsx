@@ -52,7 +52,7 @@ function CopyButton({ text }: { text: string }) {
 function CertResult({ cert }: { cert: CertificateData }) {
   const { t, lang } = useLang()
   const ipType = IP_TYPES[cert.ipType] ?? IP_TYPES[0]
-  const verifyUrl = "https://sar-ipr.netlify.app/registry"
+  const verifyUrl = "https://joud-sara-certificates.netlify.app/registry"
   const [showHistory, setShowHistory] = useState(false)
   const [printCert, setPrintCert] = useState<CertificateData | null>(null)
   const [downloading, setDownloading] = useState(false)

@@ -1056,7 +1056,7 @@ export default function RegisterRightPage() {
 
               <div className="bc-verify-qr" style={{ margin: '20px auto 0' }}>
                 <QRCodeSVG
-                  value={`https://sar-ipr.netlify.app/verify?id=${result.certId}`}
+                  value={`https://joud-sara-certificates.netlify.app/verify?id=${result.certId}`}
                   size={120}
                   bgColor="transparent"
                   fgColor="#60a5fa"
